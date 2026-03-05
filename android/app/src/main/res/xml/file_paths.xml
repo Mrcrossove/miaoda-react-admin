@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider配置文件
+  用于在应用间共享文件（多图分享到小红书）
+  
+  多图适配关键配置：
+  - cache-path: 共享缓存目录中的文件
+  - xhs_share: 小红书分享专用目录
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 共享缓存目录 -->
+    <cache-path name="xhs_share" path="xhs_share/" />
+    
+    <!-- 共享外部缓存目录（可选） -->
+    <external-cache-path name="xhs_share_external" path="xhs_share/" />
+    
+    <!-- 共享文件目录（可选） -->
+    <files-path name="xhs_share_files" path="xhs_share/" />
+</paths>

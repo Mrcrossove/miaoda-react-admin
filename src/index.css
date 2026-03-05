@@ -1,0 +1,489 @@
+/* stylelint-disable */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   移动端电商工具APP - 花哨风格色彩系统
+   ========================================
+   设计目标：色彩丰富 + 视觉冲击 + 活力四射
+   风格特点：渐变撞色 + 霓虹效果 + 金属质感
+   适配屏幕：375px/390px/414px/430px
+   ======================================== */
+
+@layer base {
+  :root {
+    /* ========== 移动端适配基础 ========== */
+    --radius: 1rem; /* 花哨风格圆角：16px */
+    --min-touch-target: 48px; /* 最小触摸区域：48px×48px */
+    
+    /* ========== 花哨撞色系统 ========== */
+    /* 蓝紫渐变 - 主色调 */
+    --primary: 250 70% 65%; /* #667eea 蓝紫色 */
+    --primary-glow: 270 60% 60%; /* #764ba2 深紫色 */
+    --primary-foreground: 0 0% 100%; /* 白色文字 */
+    
+    /* 橙粉渐变 - 次色调 */
+    --secondary: 330 100% 71%; /* #f093fb 粉色 */
+    --secondary-glow: 350 85% 65%; /* #f5576c 橙红色 */
+    --secondary-foreground: 0 0% 100%; /* 白色文字 */
+    
+    /* 绿黄渐变 - 强调色 */
+    --accent: 195 100% 65%; /* #4facfe 青蓝色 */
+    --accent-glow: 180 100% 50%; /* #00f2fe 青色 */
+    --accent-foreground: 0 0% 100%; /* 白色文字 */
+    
+    /* 金色 - 导航金属色 */
+    --gold: 51 100% 50%; /* #ffd700 金色 */
+    --gold-dark: 45 100% 45%; /* #e6c200 深金色 */
+    --gold-foreground: 0 0% 20%; /* 深色文字 */
+    
+    /* 霓虹色系 */
+    --neon-pink: 300 100% 50%; /* #ff00ff 霓虹粉 */
+    --neon-cyan: 180 100% 50%; /* #00ffff 霓虹青 */
+    --neon-yellow: 60 100% 50%; /* #ffff00 霓虹黄 */
+    --neon-green: 120 100% 50%; /* #00ff00 霓虹绿 */
+    
+    /* 彩色卡片色系 */
+    --card-purple: 270 70% 95%; /* 浅紫色卡片 */
+    --card-pink: 330 80% 95%; /* 浅粉色卡片 */
+    --card-blue: 200 80% 95%; /* 浅蓝色卡片 */
+    --card-green: 150 60% 95%; /* 浅绿色卡片 */
+    --card-orange: 30 90% 95%; /* 浅橙色卡片 */
+    --card-yellow: 50 90% 95%; /* 浅黄色卡片 */
+    
+    /* 成功/警告/错误色 */
+    --success: 140 70% 50%; /* #26d07c 鲜绿色 */
+    --success-foreground: 0 0% 100%;
+    --warning: 40 100% 55%; /* #ffb020 鲜橙色 */
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 85% 60%; /* #f04438 鲜红色 */
+    --destructive-foreground: 0 0% 100%;
+    
+    /* ========== 中性色体系 ========== */
+    --background: 240 20% 97%; /* #f5f5fa 浅紫灰背景 */
+    --foreground: 240 10% 15%; /* #26262e 深色文字 */
+    --card: 0 0% 100%; /* #ffffff 白色卡片 */
+    --card-foreground: 240 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    --muted: 240 10% 92%; /* #e8e8ed 灰色 */
+    --muted-foreground: 240 5% 45%;
+    --border: 240 10% 85%; /* #d4d4dc 边框 */
+    --input: 240 10% 85%;
+    --ring: 250 70% 65%; /* 主色调焦点环 */
+    
+    /* ========== 图表彩色系统 ========== */
+    --chart-1: 250 70% 65%; /* 蓝紫 */
+    --chart-2: 330 100% 71%; /* 粉色 */
+    --chart-3: 195 100% 65%; /* 青蓝 */
+    --chart-4: 140 70% 50%; /* 绿色 */
+    --chart-5: 40 100% 55%; /* 橙色 */
+    
+    /* ========== 侧边栏色彩 ========== */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 15%;
+    --sidebar-primary: 250 70% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 92%;
+    --sidebar-accent-foreground: 240 10% 15%;
+    --sidebar-border: 240 10% 85%;
+    --sidebar-ring: 250 70% 65%;
+    
+    /* ========== 花哨渐变定义 ========== */
+    --gradient-purple-blue: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-pink-orange: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-cyan-blue: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --gradient-green-yellow: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --gradient-gold: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    --gradient-rainbow: linear-gradient(135deg, #667eea 0%, #f093fb 25%, #4facfe 50%, #43e97b 75%, #ffd700 100%);
+    
+    /* 霓虹渐变 */
+    --gradient-neon-pink: linear-gradient(135deg, #ff00ff 0%, #ff1493 100%);
+    --gradient-neon-cyan: linear-gradient(135deg, #00ffff 0%, #00bfff 100%);
+    --gradient-neon-yellow: linear-gradient(135deg, #ffff00 0%, #ffd700 100%);
+    
+    /* ========== 花哨阴影定义 ========== */
+    --shadow-colorful: 0 4px 20px rgba(102, 126, 234, 0.4), 0 2px 8px rgba(240, 147, 251, 0.3);
+    --shadow-neon: 0 0 20px rgba(255, 0, 255, 0.6), 0 0 40px rgba(0, 255, 255, 0.4);
+    --shadow-gold: 0 4px 20px rgba(255, 215, 0, 0.5), 0 2px 8px rgba(255, 215, 0, 0.3);
+    --shadow-heavy: 0 8px 32px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.15);
+    
+    /* ========== 遮罩层 ========== */
+    --overlay: rgba(0, 0, 0, 0.4);
+  }
+
+  .dark {
+    /* 暗色模式保留原有配置，移动端主要使用亮色模式 */
+    --background: 222 47% 11%;
+    --foreground: 210 20% 98%;
+    --card: 222 47% 15%;
+    --card-foreground: 210 20% 98%;
+    --popover: 222 47% 15%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 207 82% 56%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 215 14% 25%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 14% 20%;
+    --muted-foreground: 220 9% 62%;
+    --accent: 215 14% 20%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 14% 25%;
+    --input: 215 14% 25%;
+    --ring: 207 82% 56%;
+    --chart-1: 207 82% 56%;
+    --chart-2: 36 100% 55%;
+    --chart-3: 122 39% 54%;
+    --chart-4: 271 76% 58%;
+    --chart-5: 340 82% 57%;
+    --sidebar-background: 222 47% 15%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 207 82% 56%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 215 14% 20%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 215 14% 25%;
+    --sidebar-ring: 207 82% 56%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(207 82% 56%) 0%, hsl(207 82% 51%) 100%);
+    --gradient-orange: linear-gradient(135deg, hsl(36 100% 55%) 0%, hsl(32 100% 53%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(122 39% 54%) 0%, hsl(122 39% 49%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(222 47% 15%) 0%, hsl(215 14% 20%) 100%);
+    --gradient-background: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(222 47% 15%) 100%);
+    
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.5);
+    
+    --overlay: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* ========================================
+   移动端基础样式优化
+   ======================================== */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* 移动端字体优化 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* 禁止文字选择（移动端体验优化）*/
+    -webkit-user-select: none;
+    user-select: none;
+    /* 禁止长按菜单 */
+    -webkit-touch-callout: none;
+  }
+  
+  /* 允许输入框和文本区域选择文字 */
+  input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* 移动端触摸反馈优化 */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* 移动端滚动优化 */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ========================================
+   花哨风格交互动效工具类
+   ======================================== */
+@layer utilities {
+  /* 渐变背景工具类 */
+  .bg-gradient-purple-blue {
+    background: var(--gradient-purple-blue);
+  }
+  
+  .bg-gradient-pink-orange {
+    background: var(--gradient-pink-orange);
+  }
+  
+  .bg-gradient-cyan-blue {
+    background: var(--gradient-cyan-blue);
+  }
+  
+  .bg-gradient-green-yellow {
+    background: var(--gradient-green-yellow);
+  }
+  
+  .bg-gradient-gold {
+    background: var(--gradient-gold);
+  }
+  
+  .bg-gradient-rainbow {
+    background: var(--gradient-rainbow);
+  }
+  
+  /* 霓虹边框效果 */
+  .neon-border-pink {
+    border: 2px solid hsl(var(--neon-pink));
+    box-shadow: 0 0 10px hsl(var(--neon-pink)), 0 0 20px hsl(var(--neon-pink)), inset 0 0 10px hsl(var(--neon-pink));
+    animation: neon-pulse 2s ease-in-out infinite;
+  }
+  
+  .neon-border-cyan {
+    border: 2px solid hsl(var(--neon-cyan));
+    box-shadow: 0 0 10px hsl(var(--neon-cyan)), 0 0 20px hsl(var(--neon-cyan)), inset 0 0 10px hsl(var(--neon-cyan));
+    animation: neon-pulse 2s ease-in-out infinite;
+  }
+  
+  .neon-border-yellow {
+    border: 2px solid hsl(var(--neon-yellow));
+    box-shadow: 0 0 10px hsl(var(--neon-yellow)), 0 0 20px hsl(var(--neon-yellow)), inset 0 0 10px hsl(var(--neon-yellow));
+    animation: neon-pulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes neon-pulse {
+    0%, 100% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.3);
+    }
+  }
+  
+  /* 金属质感效果 */
+  .metal-gold {
+    background: var(--gradient-gold);
+    box-shadow: var(--shadow-gold);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .metal-gold::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 70%
+    );
+    animation: metal-shine 3s ease-in-out infinite;
+  }
+  
+  @keyframes metal-shine {
+    0% {
+      transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    }
+    100% {
+      transform: translateX(100%) translateY(100%) rotate(45deg);
+    }
+  }
+  
+  /* 按钮脉冲动画 */
+  .btn-pulse {
+    animation: pulse-scale 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-scale {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+  
+  /* 卡片悬浮效果 */
+  .card-float {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .card-float:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-colorful);
+  }
+  
+  /* 图标旋转动画 */
+  .icon-spin {
+    animation: spin 2s linear infinite;
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* 图标弹跳动画 */
+  .icon-bounce {
+    animation: bounce 1s ease-in-out infinite;
+  }
+  
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  
+  /* 彩色阴影效果 */
+  .shadow-colorful {
+    box-shadow: var(--shadow-colorful);
+  }
+  
+  .shadow-neon {
+    box-shadow: var(--shadow-neon);
+  }
+  
+  .shadow-gold {
+    box-shadow: var(--shadow-gold);
+  }
+  
+  .shadow-heavy {
+    box-shadow: var(--shadow-heavy);
+  }
+  
+  /* 渐变文字效果 */
+  .text-gradient-purple {
+    background: var(--gradient-purple-blue);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  
+  .text-gradient-pink {
+    background: var(--gradient-pink-orange);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  
+  .text-gradient-cyan {
+    background: var(--gradient-cyan-blue);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  
+  .text-gradient-rainbow {
+    background: var(--gradient-rainbow);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  
+  /* 按钮按压效果（增强版）*/
+  .btn-press-effect {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  
+  .btn-press-effect:active {
+    transform: scale(0.95);
+    box-shadow: none;
+  }
+  
+  /* 卡片点击效果（增强版）*/
+  .card-press-effect {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .card-press-effect:active {
+    transform: scale(0.98);
+  }
+  
+  /* 页面过渡动画 */
+  .page-transition {
+    transition: all 0.3s ease;
+  }
+  
+  /* 骨架屏渐变动画（彩色版）*/
+  .skeleton-loading {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--card-purple)) 0%,
+      hsl(var(--card-pink)) 25%,
+      hsl(var(--card-blue)) 50%,
+      hsl(var(--card-green)) 75%,
+      hsl(var(--card-purple)) 100%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-wave-colorful 2s ease-in-out infinite;
+  }
+  
+  @keyframes skeleton-wave-colorful {
+    0% {
+      background-position: 400% 0;
+    }
+    100% {
+      background-position: -400% 0;
+    }
+  }
+  
+  /* 最小触摸区域保障 */
+  .min-touch-target {
+    min-width: var(--min-touch-target);
+    min-height: var(--min-touch-target);
+  }
+  
+  /* 安全区域适配（iOS刘海屏）*/
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* 彩色卡片背景 */
+  .bg-card-purple {
+    background-color: hsl(var(--card-purple));
+  }
+  
+  .bg-card-pink {
+    background-color: hsl(var(--card-pink));
+  }
+  
+  .bg-card-blue {
+    background-color: hsl(var(--card-blue));
+  }
+  
+  .bg-card-green {
+    background-color: hsl(var(--card-green));
+  }
+  
+  .bg-card-orange {
+    background-color: hsl(var(--card-orange));
+  }
+  
+  .bg-card-yellow {
+    background-color: hsl(var(--card-yellow));
+  }
+}

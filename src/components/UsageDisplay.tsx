@@ -1,0 +1,134 @@
+import { useState, useEffect } from 'react';
+import { Zap, AlertTriangle } from 'lucide-react';
+import { getUserUsage } from '@/db/api';
+import { isValidUUID } from '@/utils/uuid';
+
+interface UsageDisplayProps {
+  userId: string;
+  feature: 'image_factory' | 'ecommerce_video';
+  onRefresh?: number;
+}
+
+export default function UsageDisplay({ userId, feature, onRefresh }: UsageDisplayProps) {
+  const [usage, setUsage] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [prevRemaining, setPrevRemaining] = useState<number | null>(null);
+  const [showAnimation, setShowAnimation] = useState(false);
+
+  const loadUsage = async () => {
+    console.log('[UsageDisplay] loadUsage called, userId:', userId, 'feature:', feature);
+    
+    if (!userId || !isValidUUID(userId)) {
+      console.log('[UsageDisplay] userId is empty or invalid, skipping load');
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    const data = await getUserUsage(userId);
+    console.log('[UsageDisplay] getUserUsage result:', data);
+    
+    if (data) {
+      const isImageFactory = feature === 'image_factory';
+      const currentRemaining = isImageFactory ? data.image_factory_remaining : data.ecommerce_video_remaining;
+      
+      // 检测次数变化，触发动画
+      if (prevRemaining !== null && currentRemaining < prevRemaining) {
+        setShowAnimation(true);
+        setTimeout(() => setShowAnimation(false), 1000);
+      }
+      
+      setPrevRemaining(currentRemaining);
+    }
+    
+    setUsage(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadUsage();
+  }, [userId, onRefresh]);
+
+  // 如果没有userId，显示默认次数（未登录状态）
+  if (!userId) {
+    const isImageFactory = feature === 'image_factory';
+    const limit = isImageFactory ? 12 : 7;
+    
+    return (
+      <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/20 backdrop-blur-md border-2 border-white/40 shadow-2xl">
+        <Zap className="w-7 h-7 text-white" />
+        <div className="flex flex-col items-end">
+          <span className="text-xs font-black text-white/90">剩余次数</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-black text-white leading-tight">
+              {limit}
+            </span>
+            <span className="text-lg font-bold text-white/80">/{limit}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/20 backdrop-blur-md border-2 border-white/40">
+        <div className="animate-pulse flex items-center gap-3">
+          <Zap className="w-7 h-7 text-white" />
+          <div>
+            <div className="h-3 bg-white/40 rounded w-16 mb-1"></div>
+            <div className="h-5 bg-white/40 rounded w-20"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!usage) {
+    return null;
+  }
+
+  const isImageFactory = feature === 'image_factory';
+  const remaining = isImageFactory ? usage.image_factory_remaining : usage.ecommerce_video_remaining;
+  const limit = isImageFactory ? usage.image_factory_limit : usage.ecommerce_video_limit;
+  const creditsCost = isImageFactory ? 10 : 20;
+
+  const isLowUsage = remaining <= 2 && remaining > 0;
+  const isNoUsage = remaining === 0;
+
+  return (
+    <div 
+      className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 shadow-2xl transition-all ${
+        isNoUsage 
+          ? 'bg-red-500/90 border-red-300 animate-pulse' 
+          : isLowUsage
+          ? 'bg-yellow-500/90 border-yellow-300'
+          : 'bg-white/20 backdrop-blur-md border-white/40'
+      } ${showAnimation ? 'scale-110' : 'scale-100'}`}
+    >
+      <div className={`${showAnimation ? 'animate-bounce' : ''}`}>
+        {isNoUsage ? (
+          <AlertTriangle className="w-7 h-7 text-white" />
+        ) : (
+          <Zap className="w-7 h-7 text-white" />
+        )}
+      </div>
+      <div className="flex flex-col items-end">
+        <span className="text-xs font-black text-white/90">
+          {isNoUsage ? '次数已用完' : isLowUsage ? '次数不足' : '剩余次数'}
+        </span>
+        <div className="flex items-baseline gap-1">
+          <span className={`text-4xl font-black text-white leading-tight ${showAnimation ? 'animate-pulse' : ''}`}>
+            {remaining}
+          </span>
+          <span className="text-lg font-bold text-white/80">/{limit}</span>
+        </div>
+        {isNoUsage && (
+          <span className="text-xs font-bold text-white/90 mt-0.5">
+            {usage.credits_balance >= creditsCost ? `将消费${creditsCost}算力` : '算力不足'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
