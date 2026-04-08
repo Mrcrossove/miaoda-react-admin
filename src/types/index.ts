@@ -179,4 +179,3 @@ export interface VideoGenerationResult {
   file_size?: number;
   created_at: string;
 }
-

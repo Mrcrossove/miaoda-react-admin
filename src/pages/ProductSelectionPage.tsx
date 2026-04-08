@@ -7,12 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from '@/components/ui/textarea';
 import { ShoppingBag, Search, ImageIcon, AlertCircle, ArrowRight, Loader2, Package, X, Copy, Send, Sparkles, ZoomIn, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { searchXiaohongshuNotes } from '@/db/api';
+import { searchXiaohongshuNotes } from '@/db/selfHostedApi';
 import type { XiaohongshuNote } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import FloatingPlatformButton from '@/components/product-selection/FloatingPlatformButton';
 import { sendStreamRequest } from '@/utils/streamRequest';
 import { useXHSShare } from '@/hooks/useXHSShare';
+import { buildApiUrl } from '@/lib/apiBase';
 
 // 电商平台配置
 const E_COMMERCE_PLATFORMS = [
@@ -74,6 +75,7 @@ export default function ProductSelectionPage() {
   // AI二创状态
   const [isAIGenerating, setIsAIGenerating] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const maxTitleLength = 20;
   
   // 小红书分享Hook
   const { shareToXhs } = useXHSShare();
@@ -240,9 +242,6 @@ export default function ProductSelectionPage() {
     setEditedTitle('');
     setEditedContent('');
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
     let fullContent = '';
 
     console.log('开始AI二创:', {
@@ -253,12 +252,11 @@ export default function ProductSelectionPage() {
 
     try {
       await sendStreamRequest({
-        functionUrl: `${supabaseUrl}/functions/v1/ai-recreate-content`,
+        functionUrl: buildApiUrl('/ai-recreate-content'),
         requestBody: {
           originalTitle: publishNote.title,
           originalContent: publishNote.description || undefined
         },
-        supabaseAnonKey,
         onData: (data) => {
           try {
             console.log('收到原始数据:', data);
@@ -280,13 +278,13 @@ export default function ProductSelectionPage() {
               const contentMatch = fullContent.match(/文案[：:]\s*([\s\S]+)/);
               
               if (titleMatch) {
-                const newTitle = titleMatch[1].trim().slice(0, 20);
+                const newTitle = titleMatch[1].trim().slice(0, maxTitleLength);
                 console.log('匹配到标题:', newTitle);
                 setEditedTitle(newTitle);
               }
               
               if (contentMatch) {
-                const newContent = contentMatch[1].trim().slice(0, 200);
+                const newContent = contentMatch[1].trim();
                 console.log('匹配到文案:', newContent);
                 setEditedContent(newContent);
               }
@@ -856,14 +854,14 @@ export default function ProductSelectionPage() {
               <div className="space-y-2">
                 <label className="text-sm font-black flex items-center gap-2">
                   📌 标题
-                  <span className="text-xs text-muted-foreground font-bold">({editedTitle.length}/20)</span>
+                  <span className="text-xs text-muted-foreground font-bold">({editedTitle.length}/{maxTitleLength})</span>
                 </label>
                 <Input
                   value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value.slice(0, 20))}
-                  placeholder="输入标题（最多20字）"
+                  onChange={(e) => setEditedTitle(e.target.value.slice(0, maxTitleLength))}
+                  placeholder="输入标题"
                   className="font-bold"
-                  maxLength={20}
+                  maxLength={maxTitleLength}
                 />
               </div>
 
@@ -871,14 +869,13 @@ export default function ProductSelectionPage() {
               <div className="space-y-2">
                 <label className="text-sm font-black flex items-center gap-2">
                   ✍️ 文案内容
-                  <span className="text-xs text-muted-foreground font-bold">({editedContent.length}/200)</span>
+                  <span className="text-xs text-muted-foreground font-bold">({editedContent.length}字)</span>
                 </label>
                 <Textarea
                   value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value.slice(0, 200))}
-                  placeholder="输入文案内容（最多200字）"
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  placeholder="输入文案内容"
                   className="min-h-[200px] font-bold"
-                  maxLength={200}
                 />
               </div>
 
@@ -886,7 +883,7 @@ export default function ProductSelectionPage() {
               <div className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl border-2 border-purple-200">
                 <p className="text-sm font-black text-purple-900 mb-2">💡 一键发布流程：</p>
                 <ol className="text-xs text-purple-800 space-y-1 font-bold">
-                  <li>1. 点击"AI智能二创"按钮，自动生成爆款标题和200字文案</li>
+                  <li>1. 点击"AI智能二创"按钮，自动生成爆款标题和完整文案</li>
                   <li>2. 可手动编辑优化生成的内容</li>
                   <li>3. 点击"一键发布"后，自动唤起小红书APP</li>
                   <li>4. 标题、文案和图片自动填充，在小红书中点击"发布"即可完成</li>

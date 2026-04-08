@@ -215,10 +215,12 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 插入默认超级管理员（用户名：admin，密码：admin123）
+-- 注意：此迁移执行时 pgcrypto 可能尚未启用，先用占位值写入。
+-- 00012_enable_pgcrypto_extension.sql 会删除并用加密密码重新创建该账号。
 INSERT INTO admin_users (username, password_hash, display_name, is_super_admin, is_active)
 VALUES (
   'admin',
-  crypt('admin123', gen_salt('bf')),
+  'admin123',
   '超级管理员',
   true,
   true

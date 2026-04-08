@@ -1,96 +1,73 @@
-/**
- * QR Code Generator Component
- * 
- * React wrapper component based on QRCode.js that can convert any text to QR code image
- * 
- * Usage example:
- * import QRCodeDataUrl from './components/qrcodedataurl'
- * 
- * function App() {
- *   return <QRCodeDataUrl text="https://example.com" /> // Replace with valid URL
- * }
- */
-
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 
 interface QRCodeDataUrlProps {
-  /** 
-   * Text content to be encoded as QR code
-   * Can be URL, text, contact information, etc.
-   * Example: "https://example.com" or "CONTACT:1234567890"
-   */
-  text: string;
-
-  /**
-   * QR code image width (pixels)
-   * @default 128
-   */
-  width?: number;
-
-  /**
-   * QR code foreground color (valid CSS color value)
-   * @default "#000000" (black)
-   */
-  color?: string;
-
-  /**
-   * QR code background color (valid CSS color value) 
-   * @default "#ffffff" (white)
-   */
-  backgroundColor?: string;
-
-  /**
-   * Custom CSS class name
-   */
+  value: string;
+  size?: number;
   className?: string;
 }
 
-/**
- * QR Code Generator Component
- * @param {QRCodeDataUrlProps} props - Component properties
- */
-const QRCodeDataUrl: React.FC<QRCodeDataUrlProps> = ({
-  text,
-  width = 128,
-  color = '#000000',
-  backgroundColor = '#ffffff',
-  className = '',
-}) => {
+const QRCodeDataUrl: React.FC<QRCodeDataUrlProps> = ({ value, size = 200, className }) => {
   const [dataUrl, setDataUrl] = useState<string>('');
+  const [error, setError] = useState<boolean>(false);
 
   useEffect(() => {
-    const generateQR = async () => {
-      try {
-        const url = await QRCode.toDataURL(text, {
-          width,
-          color: {
-            dark: color,
-            light: backgroundColor,
-          },
-        });
-        setDataUrl(url);
-      } catch (err) {
-        console.error('Failed to generate QR code:', err);
-      }
-    };
+    if (!value) {
+      setError(true);
+      return;
+    }
 
-    generateQR();
-  }, [text, width, color, backgroundColor]);
+    QRCode.toDataURL(value, {
+      width: size,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => {
+        setDataUrl(url);
+        setError(false);
+      })
+      .catch((err) => {
+        console.error('QR Code generation error:', err);
+        setError(true);
+      });
+  }, [value, size]);
+
+  if (error) {
+    return (
+      <div
+        className={className}
+        style={{ width: size, height: size }}
+      >
+        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-sm">
+          二维码生成失败
+        </div>
+      </div>
+    );
+  }
+
+  if (!dataUrl) {
+    return (
+      <div
+        className={className}
+        style={{ width: size, height: size }}
+      >
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`qr-code-container ${className}`}>
-      {dataUrl ? (
-        <img
-          src={dataUrl}
-          alt={`QR Code: ${text}`}
-          width={width}
-          height={width}
-        />
-      ) : (
-        <div>Generating QR code...</div>
-      )}
-    </div>
+    <img
+      src={dataUrl}
+      alt="QR Code"
+      className={className}
+      style={{ width: size, height: size }}
+    />
   );
 };
 

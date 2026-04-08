@@ -1,36 +1,64 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '@/db/supabase';
-import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/types';
+import { isValidUUID, getUserIdFromStorage } from '@/utils/uuid';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-  if (error) {
-    console.error('获取用户信息失败:', error);
+    if (error) {
+      console.error('获取用户信息失败:', error);
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error('获取用户信息时发生网络错误:', error);
     return null;
   }
-  return data;
+}
+
+interface UserInfo {
+  userId: string;
+  username: string;
+  displayName: string;
+}
+
+function getStoredUser(): UserInfo | null {
+  try {
+    const raw = localStorage.getItem('user_info');
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as UserInfo;
+    if (!parsed.userId || parsed.userId === '0' || !isValidUUID(parsed.userId)) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: { id: string } | null;
+  userInfo: UserInfo | null;
   profile: Profile | null;
   loading: boolean;
-  signInWithPhone: (phone: string) => Promise<{ error: Error | null }>;
-  verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  login: (userId: string, username: string, displayName: string) => void;
+  logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,78 +68,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    console.log('[AuthContext] 刷新用户信息，userId:', user.id);
     const profileData = await getProfile(user.id);
     setProfile(profileData);
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        getProfile(session.user.id).then(setProfile);
-      }
-      setLoading(false);
-    });
-    
-    // 监听认证状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        getProfile(session.user.id).then(setProfile);
-      } else {
-        setProfile(null);
-      }
-    });
+    console.log('[AuthContext] 初始化...');
+    const storedUser = getStoredUser();
 
-    return () => subscription.unsubscribe();
+    if (storedUser) {
+      console.log('[AuthContext] 找到已登录用户:', storedUser.userId);
+      setUser({ id: storedUser.userId });
+      setUserInfo(storedUser);
+      getProfile(storedUser.userId).then(setProfile);
+    }
+
+    setLoading(false);
+    console.log('[AuthContext] 初始化完成');
   }, []);
 
-  // 发送手机验证码
-  const signInWithPhone = async (phone: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone,
-      });
-
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
+  const login = (userId: string, username: string, displayName: string) => {
+    const info: UserInfo = { userId, username, displayName };
+    localStorage.setItem('user_info', JSON.stringify(info));
+    setUser({ id: userId });
+    setUserInfo(info);
+    getProfile(userId).then(setProfile);
   };
 
-  // 验证OTP
-  const verifyOtp = async (phone: string, token: string) => {
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone,
-        token,
-        type: 'sms',
-      });
-
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const logout = async () => {
+    localStorage.removeItem('user_info');
     setUser(null);
+    setUserInfo(null);
     setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      profile, 
-      loading, 
-      signInWithPhone, 
-      verifyOtp, 
-      signOut, 
-      refreshProfile 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        userInfo,
+        profile,
+        loading,
+        login,
+        logout,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

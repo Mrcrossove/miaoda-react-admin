@@ -1,12 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Sparkles, User, Brain, Image, Video } from 'lucide-react';
+import { Sparkles, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   {
     path: '/',
     label: '创作',
-    icon: Home,
+    icon: Sparkles,
   },
   {
     path: '/profile',
@@ -19,60 +19,45 @@ export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 不显示底部导航的页面
   const hideNavPaths = ['/login'];
-  
-  // 智能体对话页面不显示底部导航
+
   if (
-    hideNavPaths.includes(location.pathname) || 
+    hideNavPaths.includes(location.pathname) ||
     location.pathname.startsWith('/agent-chat/')
   ) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-purple-blue border-t-2 border-gold z-50 shadow-heavy">
-      <div className="flex items-center justify-around h-16 max-w-screen-xl mx-auto px-2">
+    <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-[600px] px-4 pb-4">
+      <div className="grid h-16 grid-cols-2 overflow-hidden rounded-[24px] border border-gray-200 bg-white/90 shadow-lg backdrop-blur-xl">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
-          
+
           return (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                'flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all duration-300 relative',
-                isActive 
-                  ? 'text-white scale-110' 
-                  : 'text-gold/70 hover:text-gold hover:scale-105'
+                'relative flex h-full flex-col items-center justify-center gap-1 transition-all duration-300',
+                isActive ? 'text-violet-600' : 'text-gray-400 hover:text-gray-600',
               )}
             >
-              {/* 霓虹边框效果（仅当前页）*/}
               {isActive && (
-                <div className="absolute inset-0 rounded-lg neon-border-cyan animate-glow" />
+                <div className="absolute inset-x-6 top-2 bottom-2 rounded-2xl bg-gradient-to-r from-violet-100 to-fuchsia-100" />
               )}
-              
-              {/* 金属质感图标 */}
-              <div className={cn(
-                'relative z-10 p-2 rounded-full transition-all duration-300',
-                isActive 
-                  ? 'bg-gradient-gold shadow-gold' 
-                  : 'bg-white/10'
-              )}>
-                <Icon className={cn(
-                  'w-5 h-5 transition-transform duration-300',
-                  isActive && 'animate-bounce-soft'
-                )} />
+              <div
+                className={cn(
+                  'relative z-10 rounded-full p-2 transition-all duration-300',
+                  isActive
+                    ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-500',
+                )}
+              >
+                <Icon className="h-5 w-5" />
               </div>
-              
-              {/* 标签文字 */}
-              <span className={cn(
-                'text-xs font-bold relative z-10',
-                isActive && 'text-gradient-rainbow'
-              )}>
-                {item.label}
-              </span>
+              <span className={cn('relative z-10 text-xs font-medium', isActive && 'text-violet-600')}>{item.label}</span>
             </button>
           );
         })}

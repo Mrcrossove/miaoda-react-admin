@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { ArrowLeft, Send, Loader2, Copy, Table, Network, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAgentById } from '@/config/agents';
-import { sendStreamRequest } from '@/utils/stream';
+import { agentChat } from '@/db/selfHostedApi';
 import { Streamdown } from 'streamdown';
 
 // 输出格式类型
@@ -35,8 +35,6 @@ export default function AgentChatPage() {
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const accumulatedResponseRef = useRef<string>(''); // 用于累积响应内容
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   // 滚动到底部
   const scrollToBottom = () => {
@@ -115,32 +113,26 @@ export default function AgentChatPage() {
     abortControllerRef.current = new AbortController();
 
     try {
-      await sendStreamRequest({
-        functionUrl: `${supabaseUrl}/functions/v1/agent-chat`,
-        requestBody: {
-          agentId: agent?.id,
-          messages: [...messages, userMessage].map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-          enableWebSearch: agent?.enableWebSearch || false,
-          outputFormat,
-        },
-        supabaseAnonKey,
-        onData: (data) => {
+      await agentChat(
+        input.trim(),
+        agent?.id || '',
+        [...messages, userMessage].map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        (data) => {
           try {
             const parsed = JSON.parse(data);
             const chunk = parsed.choices?.[0]?.delta?.content || '';
             if (chunk) {
-              accumulatedResponseRef.current += chunk; // 累积到 ref
-              setCurrentResponse(accumulatedResponseRef.current); // 更新显示
+              accumulatedResponseRef.current += chunk;
+              setCurrentResponse(accumulatedResponseRef.current);
             }
           } catch (e) {
             console.warn('解析数据失败:', e);
           }
         },
-        onComplete: () => {
-          // 使用 ref 中的完整内容
+        () => {
           const finalContent = accumulatedResponseRef.current;
           console.log('对话完成，最终内容长度:', finalContent.length);
           
@@ -153,24 +145,24 @@ export default function AgentChatPage() {
             },
           ]);
           setCurrentResponse('');
-          accumulatedResponseRef.current = ''; // 清空 ref
+          accumulatedResponseRef.current = '';
           setIsLoading(false);
         },
-        onError: (error) => {
+        (error) => {
           console.error('请求失败:', error);
           toast.error('请求失败，请稍后重试');
           setIsLoading(false);
           setCurrentResponse('');
-          accumulatedResponseRef.current = ''; // 清空 ref
+          accumulatedResponseRef.current = '';
         },
-        signal: abortControllerRef.current.signal,
-      });
+        abortControllerRef.current.signal
+      );
     } catch (error) {
       console.error('发送消息失败:', error);
       toast.error('发送消息失败');
       setIsLoading(false);
       setCurrentResponse('');
-      accumulatedResponseRef.current = ''; // 清空 ref
+      accumulatedResponseRef.current = '';
     }
   };
 

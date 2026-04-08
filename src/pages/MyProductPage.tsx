@@ -11,10 +11,9 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { ImageUpload } from '@/components/common/ImageUpload';
 import { sendStreamRequest } from '@/utils/stream';
-import { 
-  getUserProducts, 
-  createProduct
-} from '@/db/api';
+import { createProduct, getUserProducts } from '@/db/api';
+import { generateXiaohongshuCopy } from '@/db/selfHostedApi';
+import { buildApiUrl } from '@/lib/apiBase';
 import type { Product } from '@/types';
 import { useXHSShare } from '@/hooks/useXHSShare';
 import { getUserIdFromStorage, isValidUUID } from '@/utils/uuid';
@@ -51,24 +50,23 @@ export default function MyProductPage() {
   // 小红书分享Hook
   const { shareToXhs, isSDKLoaded } = useXHSShare();
 
-  // 获取用户ID（支持两种登录方式）
+  // 获取用户ID（Supabase Auth）
   useEffect(() => {
-    // 优先使用Supabase认证的user
     if (user?.id && isValidUUID(user.id)) {
       console.log('[MyProductPage] 使用Supabase认证用户ID:', user.id);
       setUserId(user.id);
       return;
     }
-    
-    // 否则从localStorage获取账号密码登录的userId
-    const validUserId = getUserIdFromStorage();
-    if (validUserId) {
-      console.log('[MyProductPage] 使用localStorage用户ID:', validUserId);
-      setUserId(validUserId);
-    } else {
-      console.warn('[MyProductPage] 未获取到有效的用户ID');
-      setUserId(null);
+
+    console.warn('[MyProductPage] 未获取到有效的用户ID');
+    const storedUserId = getUserIdFromStorage();
+    if (storedUserId) {
+      console.log('[MyProductPage] 使用本地账号用户ID:', storedUserId);
+      setUserId(storedUserId);
+      return;
     }
+
+    setUserId(null);
   }, [user]);
 
   // 加载产品列表
@@ -228,20 +226,16 @@ export default function MyProductPage() {
     abortControllerRef.current = abortController;
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
       let fullContent = '';
 
       await sendStreamRequest({
-        functionUrl: `${supabaseUrl}/functions/v1/generate-xiaohongshu-copy`,
+        functionUrl: buildApiUrl('/generate-xiaohongshu-copy'),
         requestBody: {
           productName: product.name,
           sellingPoints: product.selling_points,
           targetAudience: product.target_audience,
           description: product.description,
         },
-        supabaseAnonKey,
         onData: (data) => {
           try {
             const parsed = JSON.parse(data);

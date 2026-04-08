@@ -3,8 +3,8 @@
  * 基于10年电商实战经验的Prompt模板
  */
 
-export type ProductCategory = '通用' | '美妆' | '3C' | '食品' | '家居' | '服饰';
 export type VideoDuration = 10 | 15;
+export type ProductCategory = '通用' | '美妆' | '3C' | '食品' | '家居' | '服饰';
 
 interface PromptTemplates {
   [category: string]: {

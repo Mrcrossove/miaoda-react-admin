@@ -16,33 +16,51 @@ export default function UsageDisplay({ userId, feature, onRefresh }: UsageDispla
   const [showAnimation, setShowAnimation] = useState(false);
 
   const loadUsage = async () => {
-    console.log('[UsageDisplay] loadUsage called, userId:', userId, 'feature:', feature);
+    console.log('========== [UsageDisplay] loadUsage ==========');
+    console.log('[UsageDisplay] userId:', userId);
+    console.log('[UsageDisplay] isValidUUID(userId):', isValidUUID(userId));
+    console.log('[UsageDisplay] feature:', feature);
     
     if (!userId || !isValidUUID(userId)) {
-      console.log('[UsageDisplay] userId is empty or invalid, skipping load');
+      console.log('[UsageDisplay] ❌ userId 无效，使用默认值');
       setLoading(false);
       return;
     }
     
+    console.log('[UsageDisplay] ✅ userId 有效，开始加载...');
     setLoading(true);
-    const data = await getUserUsage(userId);
-    console.log('[UsageDisplay] getUserUsage result:', data);
+    try {
+      const data = await getUserUsage(userId);
+      console.log('[UsageDisplay] getUserUsage 返回:', data);
+      console.log('[UsageDisplay] data 类型:', typeof data);
+      console.log('[UsageDisplay] data.image_factory_remaining:', data?.image_factory_remaining);
     
-    if (data) {
-      const isImageFactory = feature === 'image_factory';
-      const currentRemaining = isImageFactory ? data.image_factory_remaining : data.ecommerce_video_remaining;
-      
-      // 检测次数变化，触发动画
-      if (prevRemaining !== null && currentRemaining < prevRemaining) {
-        setShowAnimation(true);
-        setTimeout(() => setShowAnimation(false), 1000);
+      if (data) {
+        console.log('[UsageDisplay] ✅ 成功加载使用次数');
+        const isImageFactory = feature === 'image_factory';
+        const currentRemaining = isImageFactory ? data.image_factory_remaining : data.ecommerce_video_remaining;
+        console.log('[UsageDisplay] 当前剩余次数:', currentRemaining);
+        
+        // 检测次数变化，触发动画
+        if (prevRemaining !== null && currentRemaining < prevRemaining) {
+          setShowAnimation(true);
+          setTimeout(() => setShowAnimation(false), 1000);
+        }
+        
+        setPrevRemaining(currentRemaining);
+      } else {
+        console.warn('[UsageDisplay] ❌ getUserUsage 返回 null 或 undefined');
       }
       
-      setPrevRemaining(currentRemaining);
+      setUsage(data);
+    } catch (error) {
+      console.error('[UsageDisplay] ❌ 加载使用次数失败:', error);
+      // 如果是网络错误，设置 usage 为 null 以避免阻塞界面
+      setUsage(null);
+    } finally {
+      setLoading(false);
+      console.log('========== [UsageDisplay] loadUsage 结束 ==========');
     }
-    
-    setUsage(data);
-    setLoading(false);
   };
 
   useEffect(() => {

@@ -12,6 +12,10 @@ dist
 dist-ssr
 output
 *.local
+.env
+server/.env
+supabase/.env
+android_backup_20260324
 package-lock.json
 
 # Editor directories and files

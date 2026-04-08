@@ -27,24 +27,22 @@ Deno.serve(async (req) => {
 请按以下格式输出：
 
 【标题】
-（生成1个抓人眼球的小红书爆款标题，使用感叹词、数字、emoji等元素，控制在20字以内）
+（生成 1 个抓人眼球的小红书爆款标题，使用感叹词、数字、emoji 等元素，控制在 20 字以内）
 
 【正文】
 （生成完整的小红书正文，包含：
 1. 开场引入，制造共鸣或痛点
 2. 突出主题核心内容和解决的实际问题
 3. 分享真实的体验或感受
-4. 结尾添加2-3个相关话题标签
-正文控制在200-300字，使用emoji增强表现力）`;
+4. 结尾添加 2-3 个相关话题标签
+正文控制在 200-300 字，使用 emoji 增强表现力）`;
 
-    // 调用文心大模型API（流式）
-    const apiKey = Deno.env.get('INTEGRATIONS_API_KEY');
-    const apiUrl = 'https://app-8sm6r7tdrncx-api-zYkZz8qovQ1L-gateway.appmiaoda.com/v2/chat/completions';
+    // 调用文心大模型 API（流式）- 与 generate-xiaohongshu-copy 使用相同的端点
+    const apiUrl = 'https://api-integrations.appmiaoda.com/app-8sm6r7tdrncx/api-Xa6JZMByJlDa/v2/chat/completions';
     
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'X-Gateway-Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -57,7 +55,7 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`API请求失败: ${response.status} ${errorText}`);
+      throw new Error(`API 请求失败：${response.status} ${errorText}`);
     }
 
     // 创建流式响应
@@ -95,13 +93,12 @@ Deno.serve(async (req) => {
                   const content = parsed.choices?.[0]?.delta?.content || '';
                   
                   if (content) {
-                    // 发送SSE格式的数据
                     controller.enqueue(
                       new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`)
                     );
                   }
                 } catch (e) {
-                  console.error('解析JSON失败:', e);
+                  console.error('解析 JSON 失败:', e);
                 }
               }
             }

@@ -11,17 +11,9 @@ BEGIN
   END IF;
 END $$;
 
--- 重新插入默认管理员账号（确保使用正确的加密）
-DELETE FROM admin_users WHERE username = 'admin';
-
-INSERT INTO admin_users (username, password_hash, display_name, is_super_admin, is_active)
-VALUES (
-  'admin',
-  crypt('admin123', gen_salt('bf')),
-  '超级管理员',
-  true,
-  true
-);
+-- 注意：
+-- 不在本迁移里调用 crypt/gen_salt，避免不同 schema/search_path 导致的函数不可见问题。
+-- 管理员加密重建在后续 00013_fix_pgcrypto_schema_issue.sql 中统一处理。
 
 -- 验证管理员账号是否创建成功
 DO $$

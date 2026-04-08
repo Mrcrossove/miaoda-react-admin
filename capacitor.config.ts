@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: '自媒体创作',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
   },
   plugins: {
     Share: {

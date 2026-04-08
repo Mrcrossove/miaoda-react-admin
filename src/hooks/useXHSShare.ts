@@ -6,8 +6,20 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Clipboard } from '@capacitor/clipboard';
 import { toast } from 'sonner';
 import { supabase } from '@/db/supabase';
+
+const XHS_SDK_URL = 'https://fe-static.xhscdn.com/biz-static/goten/xhs-1.0.1.js';
+const XHS_SDK_LOAD_TIMEOUT_MS = 8000;
+
+interface XHSBridgePlugin {
+  isXHSInstalled(): Promise<{ installed: boolean }>;
+  openXHS(): Promise<{ opened: boolean }>;
+}
+
+const XHSBridge = registerPlugin<XHSBridgePlugin>('XHSBridge');
 
 // 小红书JS SDK类型声明
 declare global {
@@ -105,6 +117,51 @@ const isApp = (): boolean => {
 };
 
 /**
+ * 判断是否Capacitor原生环境
+ */
+const isCapacitorNative = (): boolean => {
+  return Capacitor.isNativePlatform();
+};
+
+/**
+ * 确保小红书SDK可用
+ */
+const ensureXHSSDKLoaded = (): Promise<boolean> => {
+  if (typeof window.xhs?.share === 'function') {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${XHS_SDK_URL}"]`);
+    const deadline = Date.now() + XHS_SDK_LOAD_TIMEOUT_MS;
+
+    const pollSDK = () => {
+      if (typeof window.xhs?.share === 'function') {
+        resolve(true);
+        return;
+      }
+      if (Date.now() > deadline) {
+        resolve(false);
+        return;
+      }
+      window.setTimeout(pollSDK, 100);
+    };
+
+    if (existingScript) {
+      pollSDK();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = XHS_SDK_URL;
+    script.async = true;
+    script.onload = pollSDK;
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+};
+
+/**
  * 小红书JS SDK分享Hook
  */
 export function useXHSShare() {
@@ -112,16 +169,28 @@ export function useXHSShare() {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
 
   useEffect(() => {
-    // 检查SDK是否加载
-    const checkSDK = () => {
-      if (typeof window.xhs !== 'undefined') {
-        console.log('小红书JS SDK已加载');
+    const updateSDKState = (loaded: boolean) => {
+      if (loaded) {
+        console.log('小红书JS SDK已就绪');
         setIsSDKLoaded(true);
         setIsReady(true);
       } else {
-        console.warn('小红书JS SDK未加载，请确保已引入SDK脚本');
+        console.warn('小红书JS SDK未加载或不可用');
         setIsSDKLoaded(false);
         setIsReady(false);
+      }
+    };
+
+    const initSDK = async () => {
+      const loaded = await ensureXHSSDKLoaded();
+      updateSDKState(loaded);
+
+      if (!loaded) {
+        console.error('小红书SDK加载失败', {
+          sdkUrl: XHS_SDK_URL,
+          isCapacitorNative: isCapacitorNative(),
+          hasPlusRuntime: isApp(),
+        });
       }
     };
 
@@ -132,12 +201,45 @@ export function useXHSShare() {
         if (window.plus?.navigator) {
           window.plus.navigator.setWhitelist(['xhsdiscover://*']);
         }
-        checkSDK();
+        void initSDK();
       }, false);
     } else {
-      // 网页环境直接检查
-      // 延迟检查，确保SDK脚本已加载
-      setTimeout(checkSDK, 100);
+      void initSDK();
+    }
+  }, []);
+
+  const openXHSApp = useCallback(async (): Promise<boolean> => {
+    if (isCapacitorNative()) {
+      try {
+        const result = await XHSBridge.openXHS();
+        return !!result.opened;
+      } catch (error) {
+        console.error('Capacitor打开小红书失败:', error);
+        return false;
+      }
+    }
+
+    if (isApp() && window.plus) {
+      return new Promise((resolve) => {
+        try {
+          window.plus.runtime.openURL(
+            'xhsdiscover://',
+            () => resolve(true),
+            () => resolve(false),
+          );
+        } catch (error) {
+          console.error('plus打开小红书失败:', error);
+          resolve(false);
+        }
+      });
+    }
+
+    try {
+      window.location.href = 'xhsdiscover://';
+      return true;
+    } catch (error) {
+      console.error('网页打开小红书失败:', error);
+      return false;
     }
   }, []);
 
@@ -146,6 +248,16 @@ export function useXHSShare() {
    */
   const checkXHSInstalled = useCallback((): Promise<boolean> => {
     return new Promise((resolve) => {
+      if (isCapacitorNative()) {
+        XHSBridge.isXHSInstalled()
+          .then((result) => resolve(!!result.installed))
+          .catch((error) => {
+            console.error('Capacitor检测小红书安装状态失败:', error);
+            resolve(true);
+          });
+        return;
+      }
+
       if (isApp() && window.plus) {
         // Android: 检测包名 com.xingin.xhs
         // iOS: 检测URL Scheme xhsdiscover://
@@ -199,24 +311,35 @@ export function useXHSShare() {
   /**
    * 降级方案：复制文案+提示保存图片
    */
-  const fallbackToClipboard = useCallback((params: XHSShareParams) => {
+  const fallbackToClipboard = useCallback(async (params: XHSShareParams) => {
     const fullText = `${params.title || ''}\n\n${params.content || ''}`;
-    
-    // 复制到剪贴板
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(fullText).then(() => {
-        if (isApp() && window.plus) {
-          window.plus.nativeUI.toast('已复制文案，请手动打开小红书粘贴');
-        } else {
-          toast.info('已复制文案，请手动打开小红书粘贴');
-        }
-      }).catch(() => {
-        toast.error('复制失败，请手动复制文案');
-      });
-    } else {
-      toast.error('浏览器不支持自动复制，请手动复制文案');
+
+    try {
+      if (isCapacitorNative()) {
+        await Clipboard.write({ string: fullText });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(fullText);
+      } else {
+        toast.error('浏览器不支持自动复制，请手动复制文案');
+        return;
+      }
+
+      const opened = await openXHSApp();
+      if (opened) {
+        toast.info('已复制文案，并尝试打开小红书');
+        return;
+      }
+
+      if (isApp() && window.plus) {
+        window.plus.nativeUI.toast('已复制文案，请手动打开小红书粘贴');
+      } else {
+        toast.info('已复制文案，请手动打开小红书粘贴');
+      }
+    } catch (error) {
+      console.error('降级复制失败:', error);
+      toast.error('复制失败，请手动复制文案');
     }
-  }, []);
+  }, [openXHSApp]);
 
   /**
    * 分享到小红书
@@ -224,22 +347,31 @@ export function useXHSShare() {
    */
   const shareToXhs = useCallback(async (params: XHSShareParams) => {
     try {
+      const sdkLoaded = await ensureXHSSDKLoaded();
+      const sdkReady = isReady || sdkLoaded;
+      if (sdkLoaded !== isSDKLoaded) {
+        setIsSDKLoaded(sdkLoaded);
+        setIsReady(sdkLoaded);
+      }
+
       // 1. 检查SDK是否加载
-      if (!isReady || !isSDKLoaded || !window.xhs) {
-        console.warn('SDK未加载，使用降级方案');
-        fallbackToClipboard(params);
+      if (!sdkLoaded || !sdkReady || typeof window.xhs?.share !== 'function') {
+        console.warn('SDK未加载或不可用，使用降级方案', {
+          isReady: sdkReady,
+          isSDKLoaded: sdkLoaded,
+          hasShareMethod: typeof window.xhs?.share === 'function',
+          isCapacitorNative: isCapacitorNative(),
+          hasPlusRuntime: isApp(),
+        });
+        await fallbackToClipboard(params);
         return;
       }
 
-      // 2. 在HBuilderX App中，检测是否安装小红书
-      if (isApp()) {
+      // 2. 在原生环境中，检测是否安装小红书
+      if (isCapacitorNative() || isApp()) {
         const isInstalled = await checkXHSInstalled();
         if (!isInstalled) {
           toast.warning('未检测到小红书APP，请先安装');
-          // 引导下载
-          if (window.plus) {
-            window.plus.runtime.openURL('https://www.xiaohongshu.com');
-          }
           return;
         }
       }
@@ -278,7 +410,7 @@ export function useXHSShare() {
       
       if (!verifyConfig) {
         console.error('获取鉴权配置失败');
-        fallbackToClipboard(params);
+        await fallbackToClipboard(params);
         return;
       }
 
@@ -302,8 +434,7 @@ export function useXHSShare() {
           console.error('小红书分享失败:', error);
           toast.error('分享失败，请重试');
           params.fail?.(error);
-          // 失败时使用降级方案
-          fallbackToClipboard(params);
+          void fallbackToClipboard(params);
         },
       };
 
@@ -314,8 +445,7 @@ export function useXHSShare() {
     } catch (error) {
       console.error('分享异常:', error);
       toast.error('分享异常，已复制文案到剪贴板');
-      // 异常时使用降级方案
-      fallbackToClipboard(params);
+      await fallbackToClipboard(params);
     }
   }, [isReady, isSDKLoaded, checkXHSInstalled, getVerifyConfig, fallbackToClipboard]);
 

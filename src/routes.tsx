@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import MyProductPage from './pages/MyProductPage';
@@ -8,13 +9,11 @@ import CognitiveAwakeningPage from './pages/CognitiveAwakeningPage';
 import AgentChatPage from './pages/AgentChatPage';
 import ImageFactoryPage from './pages/ImageFactoryPage';
 import EcommerceVideoPage from './pages/EcommerceVideoPage';
+import AIDigitalHumanPage from './pages/AIDigitalHumanPage';
 import ProfilePage from './pages/ProfilePage';
 import CreditsPage from './pages/CreditsPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import CreditHistoryPage from './pages/CreditHistoryPage';
-import AdminLoginPage from './pages/AdminLoginPage';
-import AccountManagementPage from './pages/AccountManagementPage';
-import type { ReactNode } from 'react';
 
 interface RouteConfig {
   name: string;
@@ -84,6 +83,12 @@ const routes: RouteConfig[] = [
     visible: false,
   },
   {
+    name: 'AI数字人',
+    path: '/ai-digital-human',
+    element: <AIDigitalHumanPage />,
+    visible: false,
+  },
+  {
     name: '个人中心',
     path: '/profile',
     element: <ProfilePage />,
@@ -105,18 +110,6 @@ const routes: RouteConfig[] = [
     name: '消费记录',
     path: '/credits/history',
     element: <CreditHistoryPage />,
-    visible: false,
-  },
-  {
-    name: '管理员登录',
-    path: '/admin/login',
-    element: <AdminLoginPage />,
-    visible: false,
-  },
-  {
-    name: '账号管理',
-    path: '/admin/accounts',
-    element: <AccountManagementPage />,
     visible: false,
   },
 ];

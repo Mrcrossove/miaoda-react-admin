@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Users, TrendingUp, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { getTrendingLists } from '@/db/api';
+import { getTrendingLists } from '@/db/selfHostedApi';
 import type { TrendingType, TrendingItem } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 

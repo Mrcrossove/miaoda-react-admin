@@ -1,21 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, Download, Loader2, CheckCircle2, XCircle, RotateCcw, Zap, AlertCircle } from 'lucide-react';
+import { Play, Download, Loader2, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateSoraVideo, querySoraVideo, checkVideoGenerationUsage, recordVideoGenerationUsage } from '@/db/api';
+import { generateSoraVideo, querySoraVideo } from '@/db/api';
 import type { VideoDuration } from '@/utils/promptGenerator';
-import { useNavigate } from 'react-router-dom';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 interface VideoGenerationStepProps {
   prompt: string;
@@ -24,7 +13,7 @@ interface VideoGenerationStepProps {
   onReset: () => void;
 }
 
-type GenerationStatus = 'idle' | 'checking' | 'submitting' | 'generating' | 'completed' | 'failed' | 'limit_reached';
+type GenerationStatus = 'idle' | 'submitting' | 'generating' | 'completed' | 'failed';
 
 export default function VideoGenerationStep({
   prompt,
@@ -32,44 +21,16 @@ export default function VideoGenerationStep({
   onBack,
   onReset,
 }: VideoGenerationStepProps) {
-  const navigate = useNavigate();
   const [status, setStatus] = useState<GenerationStatus>('idle');
   const [taskId, setTaskId] = useState<string>('');
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [progress, setProgress] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [usageCount, setUsageCount] = useState<number>(0);
-  const [showLimitDialog, setShowLimitDialog] = useState(false);
-  const [usageRecorded, setUsageRecorded] = useState(false); // 标记是否已记录使用次数
 
-  // 自动开始生成前先检查使用次数
+  // 自动开始生成（使用次数已在 EcommerceVideoPage 中检查并扣除）
   useEffect(() => {
-    checkUsageAndStart();
+    startGeneration();
   }, []);
-
-  // 检查使用次数并开始生成
-  const checkUsageAndStart = async () => {
-    setStatus('checking');
-    
-    try {
-      // 检查今日使用次数
-      const result = await checkVideoGenerationUsage();
-
-      if (!result.canUse) {
-        setStatus('limit_reached');
-        setUsageCount(result.usageCount || 0);
-        setShowLimitDialog(true);
-        return;
-      }
-
-      // 可以使用，开始生成
-      startGeneration();
-    } catch (error) {
-      console.error('检查使用次数失败:', error);
-      toast.error('检查使用次数失败，请重试');
-      setStatus('failed');
-    }
-  };
 
   // 开始生成视频
   const startGeneration = async () => {
@@ -78,24 +39,15 @@ export default function VideoGenerationStep({
     setErrorMessage('');
 
     try {
-      // 只在第一次生成时记录使用次数（避免重新生成时重复扣除）
-      if (!usageRecorded) {
-        const usageResult = await recordVideoGenerationUsage();
-        
-        if (!usageResult.success) {
-          throw new Error('记录使用次数失败');
-        }
-        
-        setUsageCount(usageResult.usageCount || 0);
-        setUsageRecorded(true); // 标记已记录
-      }
+      console.log('[VideoGenerationStep] 开始生成视频, prompt:', prompt, 'duration:', duration);
       
       // 调用SORA2 API提交生成请求
       const result = await generateSoraVideo(prompt, duration);
       
+      console.log('[VideoGenerationStep] 生成请求结果:', result);
+      
       setTaskId(result.video_id);
       setStatus('generating');
-      
 
       // 开始轮询查询状态
       pollTaskStatus(result.video_id);
@@ -197,71 +149,10 @@ export default function VideoGenerationStep({
 
   return (
     <div className="space-y-6">
-      {/* 次数用完对话框 */}
-      <AlertDialog open={showLimitDialog} onOpenChange={setShowLimitDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-orange" />
-              今日免费次数已用完
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>每天可免费生成 <span className="text-success font-semibold">1次</span> 电商视频</p>
-              <p>您今日已使用：<span className="text-orange font-semibold">{usageCount}次</span></p>
-              <p>明天再来吧！或者联系客服开通更多权限</p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={onBack}>返回</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate('/profile')}>
-              前往个人中心
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* 生成状态卡片 */}
       <Card>
         <CardContent className="p-8">
           <div className="flex flex-col items-center justify-center text-center space-y-4">
-            {/* 检查使用次数中 */}
-            {status === 'checking' && (
-              <>
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">正在检查使用次数...</h3>
-                  <p className="text-sm text-muted-foreground">
-                    请稍候
-                  </p>
-                </div>
-              </>
-            )}
-
-            {/* 次数用完 */}
-            {status === 'limit_reached' && (
-              <>
-                <div className="w-16 h-16 rounded-full bg-orange/10 flex items-center justify-center">
-                  <AlertCircle className="w-8 h-8 text-orange" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">今日免费次数已用完</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    每天可免费生成1次，今日已使用：{usageCount}次
-                  </p>
-                  <div className="flex gap-3">
-                    <Button variant="outline" onClick={onBack}>
-                      返回
-                    </Button>
-                    <Button onClick={() => navigate('/profile')}>
-                      前往个人中心
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-
             {/* 提交中 */}
             {status === 'submitting' && (
               <>

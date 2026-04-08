@@ -1,50 +1,114 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Lock, Smartphone, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { User, Lock, Sparkles } from 'lucide-react';
-import { loginWithAccount } from '@/db/api';
+import { loginWithAccount, registerWithAccount } from '@/db/api';
+import { useAuth } from '@/contexts/AuthContext';
+
+const PHONE_REGEX = /^1\d{10}$/;
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { login } = useAuth();
 
-  const from = (location.state as { from?: string })?.from || '/';
+  const from = (location.state as { from?: string } | null)?.from || '/';
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const validateForm = () => {
+    if (!phone.trim() || !password) {
+      toast.error('请输入手机号和密码');
+      return false;
+    }
+
+    if (!PHONE_REGEX.test(phone.trim())) {
+      toast.error('手机号必须是 11 位且以 1 开头');
+      return false;
+    }
+
+    if (password.length < 6) {
+      toast.error('密码长度至少需要 6 位');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!username || !password) {
-      toast.error('请输入账号和密码');
+
+    if (!validateForm()) {
       return;
     }
 
     setLoading(true);
     try {
-      const result = await loginWithAccount(username, password);
-      
-      if (result.success) {
-        // 保存用户信息到localStorage
-        localStorage.setItem('user_info', JSON.stringify({
-          userId: result.userId,
-          username: result.username,
-          displayName: result.displayName
-        }));
-        
-        toast.success('登录成功');
+      const normalizedPhone = phone.trim();
+      console.log('========== [LoginPage] handleSubmit ==========');
+      console.log('[LoginPage] 登录模式:', isRegisterMode ? '注册' : '登录');
+      console.log('[LoginPage] 手机号:', normalizedPhone);
+
+      if (isRegisterMode) {
+        console.log('[LoginPage] 开始注册...');
+        const registerResult = await registerWithAccount(normalizedPhone, password, normalizedPhone);
+        console.log('[LoginPage] 注册结果:', registerResult);
+
+        if (!registerResult.success) {
+          toast.error(registerResult.message || '注册失败');
+          return;
+        }
+
+        console.log('[LoginPage] 注册成功，开始自动登录...');
+        const loginResult = await loginWithAccount(normalizedPhone, password);
+        console.log('[LoginPage] 登录结果:', loginResult);
+
+        if (!loginResult.success) {
+          toast.error(loginResult.message || '注册成功，但自动登录失败');
+          return;
+        }
+
+        if (!loginResult.userId || loginResult.userId === '0') {
+          console.error('[LoginPage] 注册成功但 userId 无效:', loginResult.userId);
+          toast.error('注册成功，但用户 ID 无效');
+          return;
+        }
+
+        login(loginResult.userId, loginResult.username || normalizedPhone, loginResult.displayName || normalizedPhone);
+        console.log('[LoginPage] 注册并登录完成，准备跳转...');
+        toast.success('注册并登录成功');
         navigate(from, { replace: true });
-      } else {
-        toast.error(result.message || '登录失败');
+        return;
       }
+
+      console.log('[LoginPage] 开始登录...');
+      const loginResult = await loginWithAccount(normalizedPhone, password);
+      console.log('[LoginPage] 登录结果:', loginResult);
+
+      if (!loginResult.success) {
+        toast.error(loginResult.message || '登录失败');
+        return;
+      }
+
+      if (!loginResult.userId || loginResult.userId === '0') {
+        console.error('[LoginPage] 登录成功但 userId 无效:', loginResult.userId);
+        toast.error('登录失败：服务器返回的用户 ID 无效');
+        return;
+      }
+
+      login(loginResult.userId, loginResult.username || normalizedPhone, loginResult.displayName || normalizedPhone);
+      console.log('[LoginPage] 登录完成，准备跳转...');
+      toast.success('登录成功');
+      navigate(from, { replace: true });
     } catch (error) {
-      console.error('登录异常:', error);
-      toast.error('登录异常，请重试');
+      console.error('账号认证异常:', error);
+      toast.error('认证异常，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -61,29 +125,31 @@ export default function LoginPage() {
           </div>
           <div>
             <CardTitle className="text-3xl font-black bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              自媒体创作
+              自媒体创作助手
             </CardTitle>
             <CardDescription className="text-base mt-2 font-bold">
-              使用账号密码登录
+              {isRegisterMode ? '使用手机号注册账号' : '使用手机号密码登录'}
             </CardDescription>
           </div>
         </CardHeader>
-        
+
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-bold flex items-center gap-2">
-                <User className="w-4 h-4" />
-                账号
+              <Label htmlFor="phone" className="text-sm font-bold flex items-center gap-2">
+                <Smartphone className="w-4 h-4" />
+                手机号
               </Label>
               <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="请输入账号"
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                placeholder="请输入 11 位手机号"
                 className="h-12 text-base"
-                autoComplete="username"
+                autoComplete="tel"
+                inputMode="numeric"
+                maxLength={11}
                 disabled={loading}
               />
             </div>
@@ -100,7 +166,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="请输入密码"
                 className="h-12 text-base"
-                autoComplete="current-password"
+                autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
                 disabled={loading}
               />
             </div>
@@ -110,19 +176,24 @@ export default function LoginPage() {
               className="w-full h-12 text-base font-black bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg"
               disabled={loading}
             >
-              {loading ? '登录中...' : '登录'}
+              {loading ? '处理中...' : isRegisterMode ? '注册并登录' : '登录'}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 text-base font-bold"
+              disabled={loading}
+              onClick={() => setIsRegisterMode((prev) => !prev)}
+            >
+              {isRegisterMode ? '已有账号，去登录' : '没有账号，去注册'}
             </Button>
           </form>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-800 font-bold">
-              💡 温馨提示
-            </p>
+            <p className="text-xs text-blue-800 font-bold">温馨提示</p>
             <p className="text-xs text-blue-700 mt-1">
-              请使用管理员分发的账号密码登录
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              如需账号，请联系管理员
+              当前页面使用手机号加密码登录。注册时会校验手机号必须为 11 位，注册成功后会直接自动登录。
             </p>
           </div>
         </CardContent>

@@ -1,16 +1,28 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, Phone, LogOut, Shield, Zap, History, ChevronRight, Package, Sparkles, TrendingUp } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import {
+  Crown,
+  Edit,
+  CreditCard,
+  Clock,
+  MessageSquare,
+  Video,
+  FileText,
+  Image as ImageIcon,
+  Palette,
+  Sparkles,
+  LogOut,
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 import { getUserCredits, getUserStatistics } from '@/db/api';
+import { isValidUUID } from '@/utils/uuid';
 
 export default function ProfilePage() {
-  const { user, profile, signOut } = useAuth();
+  const { user, userInfo, profile, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [credits, setCredits] = useState<number>(0);
   const [loadingCredits, setLoadingCredits] = useState(true);
   const [statistics, setStatistics] = useState({
@@ -23,219 +35,259 @@ export default function ProfilePage() {
   const [loadingStatistics, setLoadingStatistics] = useState(true);
 
   useEffect(() => {
-    loadCredits();
-    loadStatistics();
-  }, []);
-
-  const loadCredits = async () => {
-    try {
-      setLoadingCredits(true);
-      const creditsData = await getUserCredits();
-      setCredits(creditsData);
-    } catch (error) {
-      console.error('获取灵感值失败:', error);
-    } finally {
-      setLoadingCredits(false);
+    if (!user?.id || !isValidUUID(user.id)) {
+      console.error('[ProfilePage] 用户 ID 无效，跳转到登录页');
+      navigate('/login', { state: { from: '/profile' }, replace: true });
+      return;
     }
-  };
 
-  const loadStatistics = async () => {
-    try {
-      setLoadingStatistics(true);
-      const stats = await getUserStatistics();
-      setStatistics(stats);
-    } catch (error) {
-      console.error('获取统计数据失败:', error);
-    } finally {
-      setLoadingStatistics(false);
-    }
-  };
+    setIsCheckingAuth(false);
 
-  const handleSignOut = async () => {
-    await signOut();
-    
+    const loadCredits = async () => {
+      try {
+        setLoadingCredits(true);
+        const creditsData = await getUserCredits();
+        setCredits(creditsData);
+      } catch (error) {
+        console.error('获取灵感值失败:', error);
+      } finally {
+        setLoadingCredits(false);
+      }
+    };
+
+    const loadStatistics = async () => {
+      try {
+        setLoadingStatistics(true);
+        const stats = await getUserStatistics();
+        setStatistics(stats);
+      } catch (error) {
+        console.error('获取统计数据失败:', error);
+      } finally {
+        setLoadingStatistics(false);
+      }
+    };
+
+    void loadCredits();
+    void loadStatistics();
+  }, [user, navigate]);
+
+  const handleLogout = async () => {
+    await logout();
     navigate('/login', { replace: true });
   };
 
-  const getInitial = () => {
-    if (profile?.phone) {
-      return profile.phone.slice(-4);
-    }
-    return 'U';
-  };
+  const memberName = userInfo?.displayName || userInfo?.username || (user?.id ? `A${user.id.slice(0, 9)}` : '用户');
+
+  const commonFeatures = useMemo(
+    () => [
+      {
+        id: 'card',
+        name: '卡密兑换',
+        icon: CreditCard,
+        iconColor: 'text-blue-300',
+        gradient: 'from-blue-500/20 to-cyan-500/20',
+        action: () => navigate('/credits'),
+      },
+      {
+        id: 'update',
+        name: '更新历史',
+        icon: Clock,
+        iconColor: 'text-pink-300',
+        gradient: 'from-pink-500/20 to-rose-500/20',
+        action: () => navigate('/credits/history'),
+      },
+      {
+        id: 'feedback',
+        name: '反馈建议',
+        icon: MessageSquare,
+        iconColor: 'text-cyan-300',
+        gradient: 'from-cyan-500/20 to-blue-500/20',
+        action: () => window.open('mailto:support@example.com', '_self'),
+      },
+      {
+        id: 'video',
+        name: '视频历史',
+        icon: Video,
+        iconColor: 'text-orange-300',
+        gradient: 'from-orange-500/20 to-red-500/20',
+        action: () => navigate('/ecommerce-video'),
+      },
+      {
+        id: 'password',
+        name: '修改密码',
+        icon: Edit,
+        iconColor: 'text-red-300',
+        gradient: 'from-red-500/20 to-pink-500/20',
+        action: () => navigate('/login'),
+      },
+      {
+        id: 'notes',
+        name: '笔记历史',
+        icon: FileText,
+        iconColor: 'text-purple-300',
+        gradient: 'from-purple-500/20 to-pink-500/20',
+        action: () => navigate('/content-creation'),
+      },
+      {
+        id: 'background',
+        name: '更换背景',
+        icon: ImageIcon,
+        iconColor: 'text-indigo-300',
+        gradient: 'from-indigo-500/20 to-purple-500/20',
+        action: () => navigate('/image-factory'),
+      },
+      {
+        id: 'drawing',
+        name: '绘画历史',
+        icon: Palette,
+        iconColor: 'text-pink-300',
+        gradient: 'from-pink-500/20 to-purple-500/20',
+        action: () => navigate('/image-factory'),
+      },
+      {
+        id: 'ai',
+        name: '攻瑰AI',
+        icon: Sparkles,
+        iconColor: 'text-yellow-300',
+        gradient: 'from-yellow-500/20 to-orange-500/20',
+        action: () => navigate('/cognitive-awakening'),
+      },
+    ],
+    [navigate],
+  );
+
+  const statCards = [
+    { label: '创作次数', value: loadingStatistics ? '...' : String(statistics.creationCount) },
+    { label: '生成图片', value: loadingStatistics ? '...' : String(statistics.imageFactoryCount) },
+    { label: '使用天数', value: loadingCredits ? '...' : String(Math.max(1, Math.floor(credits / 10) || 45)) },
+  ];
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* 头部 - 花哨渐变 */}
-      <div className="bg-gradient-rainbow text-white px-6 py-10 rounded-b-[2rem] shadow-heavy relative overflow-hidden">
-        {/* 装饰性背景 */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/20 rounded-full blur-2xl animate-float" style={{ animationDelay: '1s' }} />
-        
-        <div className="flex flex-col items-center text-center space-y-4 relative z-10">
-          <Avatar className="w-24 h-24 border-4 border-white shadow-neon animate-pulse-scale">
-            <AvatarFallback className="bg-gradient-gold text-gold-foreground text-2xl font-black">
-              {getInitial()}
-            </AvatarFallback>
-          </Avatar>
+    <div className="min-h-screen bg-gradient-to-b from-white via-violet-50 to-fuchsia-50 px-6 pb-8 pt-8">
+      {/* 用户信息卡片 */}
+      <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 p-6 shadow-xl">
+        <div className="absolute -top-8 -right-8 w-24 h-24 bg-white/20 rounded-full" />
+        <div className="absolute -bottom-6 -left-6 w-16 h-16 bg-white/15 rounded-full" />
+
+        <div className="relative flex items-start gap-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg">
+            <Crown className="h-10 w-10 text-yellow-300" />
+          </div>
+          <div className="flex-1 pt-1">
+            <div className="mb-2 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-white">{memberName}</h2>
+              <button type="button" className="rounded-lg p-1.5 transition-colors hover:bg-white/20">
+                <Edit className="h-4 w-4 text-white/80" />
+              </button>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1.5 text-sm">
+              <Crown className="h-3.5 w-3.5 text-yellow-300" />
+              <span className="font-medium text-white">会员至 2026-04-05</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 统计数据 */}
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {statCards.map((stat) => (
+            <div key={stat.label} className="rounded-xl bg-white/20 backdrop-blur-sm p-3 text-center">
+              <div className="mb-1 text-xl font-bold text-white">{stat.value}</div>
+              <div className="text-xs text-white/80">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 账户概览 */}
+      <div className="mb-6 rounded-2xl bg-white p-5 shadow-md">
+        <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-black drop-shadow-lg">
-              {profile?.phone ? `用户 ${profile.phone.slice(-4)}` : '用户'}
-            </h2>
-            {profile?.role === 'admin' && (
-              <div className="flex items-center justify-center gap-1.5 mt-2 text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                <Shield className="w-4 h-4" />
-                <span>管理员</span>
-              </div>
-            )}
+            <div className="text-xs font-medium text-gray-500">剩余灵感值</div>
+            <div className="mt-1 text-3xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+              {loadingCredits ? '...' : credits}
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="rounded-full bg-gradient-to-r from-purple-100 to-pink-100 px-4 text-purple-700 hover:bg-purple-200 hover:text-purple-800 font-medium"
+            onClick={() => navigate('/credits/history')}
+          >
+            消费记录
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 p-3 text-gray-700 font-medium">
+            产品数 {loadingStatistics ? '...' : statistics.productCount}，分析数 {loadingStatistics ? '...' : statistics.analysisCount}
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 p-3 text-gray-700 font-medium">
+            图片工厂 {loadingStatistics ? '...' : statistics.imageFactoryCount} 次，视频 {loadingStatistics ? '...' : statistics.videoGenerationCount} 次
           </div>
         </div>
       </div>
-      <div className="px-4 py-6 space-y-4">
-        {/* 灵感值卡片 - 花哨渐变 */}
-        <Card className="bg-gradient-pink-orange border-0 text-white shadow-colorful overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-          <CardContent className="p-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center animate-pulse-scale">
-                    <Zap className="w-6 h-6" />
+
+      {/* 常用功能 */}
+      <div className="mb-6">
+        <h3 className="mb-4 text-sm font-bold text-gray-600">常用功能</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {commonFeatures.map((feature) => {
+            const Icon = feature.icon;
+
+            return (
+              <button
+                type="button"
+                key={feature.id}
+                onClick={feature.action}
+                className="rounded-2xl bg-white p-5 text-left shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${feature.gradient} shadow-sm`}
+                  >
+                    <Icon className={`h-6 w-6 ${feature.iconColor}`} strokeWidth={1.5} />
                   </div>
-                  <p className="text-base font-bold">我的灵感值</p>
+                  <span className="text-sm font-bold text-gray-800">{feature.name}</span>
                 </div>
-                <p className="text-3xl font-bold">
-                  {loadingCredits ? '...' : credits}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-white hover:bg-white/20 active:bg-white/30 btn-press-effect min-touch-target"
-                  onClick={() => navigate('/credits/history')}
-                >
-                  <History className="w-4 h-4 mr-1" />
-                  消费记录
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 数据统计卡片 - 彩色圆形图标 */}
-        <Card className="shadow-heavy border-2 border-transparent hover:border-gold transition-all">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-black mb-6 text-gradient-purple">数据统计</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {/* 产品数 - 蓝紫色 */}
-              <div className="flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-purple-blue shadow-colorful flex items-center justify-center mb-3 animate-pulse-scale">
-                  <Package className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-3xl font-black text-primary">
-                  {loadingStatistics ? '...' : statistics.productCount}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 font-bold">产品数</p>
-              </div>
-
-              {/* 创作数 - 粉橙色 */}
-              <div className="flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-pink-orange shadow-neon flex items-center justify-center mb-3 animate-pulse-scale" style={{ animationDelay: '0.2s' }}>
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-3xl font-black text-secondary">
-                  {loadingStatistics ? '...' : statistics.creationCount}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 font-bold">创作数</p>
-              </div>
-
-              {/* 分析数 - 青蓝色 */}
-              <div className="flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-cyan-blue shadow-colorful flex items-center justify-center mb-3 animate-pulse-scale" style={{ animationDelay: '0.4s' }}>
-                  <TrendingUp className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-3xl font-black text-accent">
-                  {loadingStatistics ? '...' : statistics.analysisCount}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 font-bold">分析数</p>
-              </div>
-            </div>
-
-            {/* 详细统计 - 彩色背景 */}
-            <div className="mt-6 pt-6 border-t-2 border-gold/30 space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-card-yellow">
-                <span className="text-sm font-bold text-foreground">图片工厂使用</span>
-                <span className="text-lg font-black text-warning">{loadingStatistics ? '...' : statistics.imageFactoryCount} 次</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-card-green">
-                <span className="text-sm font-bold text-foreground">电商视频生成</span>
-                <span className="text-lg font-black text-success">{loadingStatistics ? '...' : statistics.videoGenerationCount} 次</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 用户信息 */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center gap-3 py-2">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                <User className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">用户ID</p>
-                <p className="font-medium truncate">{user?.id.slice(0, 8)}...</p>
-              </div>
-            </div>
-            
-            {profile?.phone && (
-              <div className="flex items-center gap-3 py-2 border-t border-border">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <Phone className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">手机号</p>
-                  <p className="font-medium">{profile.phone}</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 统计信息 */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-primary">0</p>
-              <p className="text-xs text-muted-foreground mt-1">产品数</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-secondary">0</p>
-              <p className="text-xs text-muted-foreground mt-1">创作数</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-accent-foreground">0</p>
-              <p className="text-xs text-muted-foreground mt-1">分析数</p>
-            </CardContent>
-          </Card>
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* 退出登录 */}
-        <Button 
-          variant="destructive" 
-          className="w-full"
-          size="lg"
-          onClick={handleSignOut}
+      {/* 底部信息 */}
+      <div className="space-y-3 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm shadow-md border border-gray-100">
+          <span className="font-medium text-gray-700">渡鸦科技</span>
+          <span className="text-gray-400">x</span>
+          <span className="font-medium text-gray-700">项目神</span>
+          <span className="text-gray-500">倾力共创</span>
+        </div>
+        <div className="flex items-center justify-center gap-3 text-sm text-gray-500">
+          <button type="button" className="transition-colors hover:text-purple-600 font-medium">
+            用户协议
+          </button>
+          <span>·</span>
+          <button type="button" className="transition-colors hover:text-purple-600 font-medium">
+            隐私政策
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm text-gray-500 transition-colors hover:text-purple-600 font-medium"
         >
-          <LogOut className="w-5 h-5 mr-2" />
+          <LogOut className="h-4 w-4" />
           退出登录
-        </Button>
+        </button>
       </div>
     </div>
   );

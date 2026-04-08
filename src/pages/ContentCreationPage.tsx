@@ -7,14 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { FileText, Link as LinkIcon, Sparkles, Upload, Download, ExternalLink, Loader2, Image as ImageIcon, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { parseXiaohongshuNote, submitImageToImage, queryImageToImage, uploadImage } from '@/db/api';
-import { sendStreamRequest } from '@/utils/stream';
+import { uploadImage } from '@/db/api';
+import { parseXiaohongshuNote, optimizeXiaohongshuCopy } from '@/db/selfHostedApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useXHSShare } from '@/hooks/useXHSShare';
 import { compressImage } from '@/utils/imageCompress';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export default function ContentCreationPage() {
   const location = useLocation();
@@ -28,7 +26,6 @@ export default function ContentCreationPage() {
   const [isParsing, setIsParsing] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [imageToImageTasks, setImageToImageTasks] = useState<Map<string, { status: string; imageUrl?: string }>>(new Map());
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +68,9 @@ export default function ContentCreationPage() {
       return;
     }
 
+    console.log('=== 开始优化文案 ===');
+    console.log('原始内容长度:', originalContent.length);
+
     setIsOptimizing(true);
     setOptimizedContent('');
     
@@ -78,11 +78,11 @@ export default function ContentCreationPage() {
     abortControllerRef.current = new AbortController();
 
     try {
-      await sendStreamRequest({
-        functionUrl: `${supabaseUrl}/functions/v1/optimize-xiaohongshu-copy`,
-        requestBody: { originalContent },
-        supabaseAnonKey,
-        onData: (data) => {
+      console.log('准备发送请求...');
+      await optimizeXiaohongshuCopy(
+        originalContent,
+        (data) => {
+          console.log('收到数据:', data);
           try {
             const parsed = JSON.parse(data);
             const chunk = parsed.content || '';
@@ -91,17 +91,18 @@ export default function ContentCreationPage() {
             console.warn('解析数据失败:', e);
           }
         },
-        onComplete: () => {
+        () => {
+          console.log('优化完成');
           setIsOptimizing(false);
-          
         },
-        onError: (error) => {
+        (error) => {
           console.error('优化失败:', error);
           setIsOptimizing(false);
           toast.error('优化失败，请稍后重试');
         },
-        signal: abortControllerRef.current.signal,
-      });
+        abortControllerRef.current.signal
+      );
+      console.log('请求发送完成');
     } catch (error: any) {
       console.error('优化失败:', error);
       setIsOptimizing(false);
@@ -182,86 +183,9 @@ export default function ContentCreationPage() {
     }
   };
 
-  // 图生图
+  // 图生图 - 功能暂不可用
   const handleImageToImage = async (imageUrl: string) => {
-    try {
-      // 下载图片并转换为Base64
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1]; // 移除data:image前缀
-        
-        // 提交图生图任务
-        toast.info('正在提交图生图任务...');
-        const result = await submitImageToImage(
-          base64,
-          blob.type,
-          '将这张图片进行二创，保持主体内容不变，但改变风格和色调，使其更加吸引人，适合小红薯平台'
-        );
-        
-        if (result?.success && result?.data?.taskId) {
-          const taskId = result.data.taskId;
-          
-          
-          // 更新任务状态
-          setImageToImageTasks(prev => new Map(prev).set(taskId, { status: 'PENDING' }));
-          
-          // 开始轮询任务状态
-          pollImageToImageTask(taskId);
-        } else {
-          toast.error('提交任务失败');
-        }
-      };
-      
-      reader.readAsDataURL(blob);
-    } catch (error: any) {
-      console.error('图生图失败:', error);
-      toast.error(error?.message || '图生图失败');
-    }
-  };
-
-  // 轮询图生图任务状态
-  const pollImageToImageTask = async (taskId: string) => {
-    const maxAttempts = 60; // 最多查询60次（10分钟）
-    let attempts = 0;
-
-    const poll = async () => {
-      try {
-        const result = await queryImageToImage(taskId);
-        
-        if (result?.success && result?.data) {
-          const { status, imageUrl, error } = result.data;
-          
-          // 更新任务状态
-          setImageToImageTasks(prev => new Map(prev).set(taskId, { status, imageUrl }));
-          
-          if (status === 'SUCCESS' && imageUrl) {
-            
-            // 添加到上传图片列表
-            setUploadedImages(prev => [...prev, imageUrl]);
-            return;
-          } else if (status === 'FAILED') {
-            toast.error(`图片生成失败: ${error?.message || '未知错误'}`);
-            return;
-          } else if (status === 'PENDING' || status === 'PROCESSING') {
-            attempts++;
-            if (attempts < maxAttempts) {
-              // 继续轮询（每10秒查询一次）
-              setTimeout(poll, 10000);
-            } else {
-              toast.error('图片生成超时，请稍后重试');
-            }
-          }
-        }
-      } catch (error: any) {
-        console.error('查询任务失败:', error);
-        toast.error('查询任务失败');
-      }
-    };
-
-    poll();
+    toast.info('图片二创功能暂不可用，敬请期待');
   };
 
   // 删除图片

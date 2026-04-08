@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,13 +9,14 @@ import ImageSelectionStep from '@/components/image-factory/ImageSelectionStep';
 import LayoutPreviewStep from '@/components/image-factory/LayoutPreviewStep';
 import UsageDisplay from '@/components/UsageDisplay';
 import { checkAndConsumeUsage } from '@/db/api';
-import { getUserIdFromStorage, isValidUUID } from '@/utils/uuid';
+import { isValidUUID } from '@/utils/uuid';
+import { useAuth } from '@/contexts/AuthContext';
 
 // 内容项接口
 export interface ContentItem {
   subTitle: string;    // 小标题
-  content: string;     // 文案（50字以内）
-  imageUrl?: string;   // 图片URL（AI生成或用户上传）
+  content: string;     // 文案（50 字以内）
+  imageUrl?: string;   // 图片 URL（AI 生成或用户上传）
   imageType?: 'ai' | 'upload'; // 图片来源类型
 }
 
@@ -24,56 +25,78 @@ export type ContentStyle = 'science' | 'recommend' | 'cute';
 
 export default function ImageFactoryPage() {
   const location = useLocation();
-  
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
   // 当前步骤（1-4）
   const [currentStep, setCurrentStep] = useState(1);
-  
+
   // 使用次数刷新计数器
   const [usageRefreshKey, setUsageRefreshKey] = useState(0);
-  
-  // 获取用户ID
-  const [userId, setUserId] = useState<string>('');
-  
-  useEffect(() => {
-    const validUserId = getUserIdFromStorage();
-    if (validUserId) {
-      console.log('[ImageFactoryPage] 获取到有效的用户ID:', validUserId);
-      setUserId(validUserId);
-    } else {
-      console.warn('[ImageFactoryPage] 未获取到有效的用户ID，某些功能可能受限');
-      setUserId('');
-    }
-  }, []);
 
-  // 步骤1：主题输入与参数配置
-  const [theme, setTheme] = useState<string>('');           // 核心主题
-  const [itemCount, setItemCount] = useState<number>(3);    // 图片数量（1-3）
-  const [contentStyle, setContentStyle] = useState<ContentStyle>('science'); // 文案风格
-  const [backgroundImage, setBackgroundImage] = useState<string>(''); // 背景图
-  const [backgroundType, setBackgroundType] = useState<'template' | 'upload'>('template'); // 背景类型
+  // 步骤 1：主题输入与参数配置
+  const [theme, setTheme] = useState<string>('');
+  const [itemCount, setItemCount] = useState<number>(3);
+  const [contentStyle, setContentStyle] = useState<ContentStyle>('science');
+  const [backgroundImage, setBackgroundImage] = useState<string>('');
+  const [backgroundType, setBackgroundType] = useState<'template' | 'upload'>('template');
 
-  // 步骤2：AI生成的内容
+  // 步骤 2：AI 生成的内容
   const [contentList, setContentList] = useState<ContentItem[]>([]);
 
-  // 步骤3：图片选择完成的内容
+  // 步骤 3：图片选择完成的内容
   const [finalContentList, setFinalContentList] = useState<ContentItem[]>([]);
+
+  // 等待 AuthContext 加载完成并检查登录状态
+  useEffect(() => {
+    console.log('[ImageFactoryPage] authLoading:', authLoading);
+    console.log('[ImageFactoryPage] user?.id:', user?.id);
+
+    if (authLoading) {
+      return;
+    }
+
+    if (!user?.id || !isValidUUID(user.id)) {
+      console.error('[ImageFactoryPage] 用户未登录或 ID 无效，跳转登录页');
+      navigate('/login', { state: { from: '/image-factory' }, replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   // 接收从"我有产品"传递过来的参数
   useEffect(() => {
-    const state = location.state as { 
-      coreTheme?: string; 
+    if (authLoading || !user?.id) return;
+
+    const state = location.state as {
+      coreTheme?: string;
       fromMyProduct?: boolean;
       platform?: string;
     };
-    
+
     if (state?.coreTheme && state?.fromMyProduct) {
       setTheme(state.coreTheme);
-      
-      // 显示提示信息
-      
       console.log('从"我有产品"跳转，核心主题:', state.coreTheme);
     }
-  }, [location.state]);
+  }, [location.state, authLoading, user]);
+
+  // 加载中显示 loading
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // 未登录时显示 loading（等待跳转）
+  if (!user?.id || !isValidUUID(user.id)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const userId = user.id;
 
   // 步骤导航
   const goNext = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
@@ -87,16 +110,19 @@ export default function ImageFactoryPage() {
     newBackgroundImage: string,
     newBackgroundType: 'template' | 'upload'
   ) => {
-    // 检查并消费使用次数
+    console.log('[ImageFactoryPage] handleThemeConfirmed - userId:', userId);
+
     if (!userId || !isValidUUID(userId)) {
       toast.error('用户信息无效，请重新登录');
-      console.error('[ImageFactoryPage] userId无效:', userId);
+      navigate('/login', { state: { from: '/image-factory' }, replace: true });
       return;
     }
 
     try {
+      console.log('[ImageFactoryPage] 检查使用次数...');
       const result = await checkAndConsumeUsage(userId, 'image_factory');
-      
+      console.log('[ImageFactoryPage] 检查结果:', result);
+
       if (!result.success) {
         toast.error(result.message);
         return;
@@ -104,9 +130,9 @@ export default function ImageFactoryPage() {
 
       // 显示消费信息
       if (result.consumed_type === 'free') {
-        toast.success(`✅ 使用成功！本月剩余免费次数：${result.remaining_free}次`);
+        toast.success(`使用成功！本月剩余免费次数：${result.remaining_free}次`);
       } else if (result.consumed_type === 'credits') {
-        toast.success(`✅ 使用成功！消费10算力，剩余算力：${result.credits_balance}`);
+        toast.success(`使用成功！消费 10 算力，剩余算力：${result.credits_balance}`);
       }
 
       // 刷新使用次数显示
@@ -119,8 +145,9 @@ export default function ImageFactoryPage() {
       setBackgroundType(newBackgroundType);
       goNext();
     } catch (error) {
-      console.error('检查使用次数失败:', error);
-      toast.error('系统错误，请稍后重试');
+      console.error('[ImageFactoryPage] 捕获异常:', error);
+      const errorMessage = error instanceof Error ? error.message : '系统错误，请稍后重试';
+      toast.error(errorMessage);
     }
   };
 
@@ -150,12 +177,11 @@ export default function ImageFactoryPage() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* 头部Banner - 花哨渐变风格 */}
+      {/* 头部 Banner */}
       <div className="relative overflow-hidden bg-gradient-pink-orange text-white px-6 py-10 shadow-heavy">
-        {/* 装饰性背景 */}
         <div className="absolute top-0 right-0 w-40 h-40 bg-neon-yellow/30 rounded-full blur-3xl animate-float" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-neon-cyan/30 rounded-full blur-2xl animate-float" style={{ animationDelay: '1s' }} />
-        
+
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-4">
@@ -165,33 +191,31 @@ export default function ImageFactoryPage() {
               <div>
                 <h1 className="text-3xl font-black drop-shadow-lg">图片工厂</h1>
                 <p className="text-base font-bold mt-1 drop-shadow-md">
-                  AI智能生成小红薯风格配图，一键导出高清图片
+                  AI 智能生成小红薯风格配图，一键导出高清图片
                 </p>
               </div>
             </div>
-            
-            {/* 醒目的次数显示 */}
-            <UsageDisplay 
+
+            <UsageDisplay
               userId={userId}
               feature="image_factory"
               onRefresh={usageRefreshKey}
             />
           </div>
         </div>
-        
-        {/* 装饰性图形 */}
+
         <div className="absolute top-4 right-8 w-10 h-10 border-4 border-white/40 rounded-full animate-spin-slow" />
         <div className="absolute bottom-6 left-12 w-6 h-6 bg-white/30 rotate-45 animate-wiggle" />
       </div>
 
       <div className="container mx-auto p-4 xl:p-6 max-w-4xl">
-        {/* 步骤指示器 - 花哨风格 */}
+        {/* 步骤指示器 */}
         <Card className="mb-6 shadow-heavy border-2 border-transparent hover:border-gold transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               {[
                 { step: 1, label: '主题配置', icon: '🎨' },
-                { step: 2, label: 'AI生成', icon: '✨' },
+                { step: 2, label: 'AI 生成', icon: '✨' },
                 { step: 3, label: '图片选择', icon: '🖼️' },
                 { step: 4, label: '排版导出', icon: '📤' },
               ].map((item, index) => (
@@ -229,55 +253,51 @@ export default function ImageFactoryPage() {
 
         {/* 步骤内容 */}
         <div>
-        {/* 步骤1：主题输入与参数配置 */}
-        {currentStep === 1 && (
-          <ThemeInputStep
-            theme={theme}
-            itemCount={itemCount}
-            contentStyle={contentStyle}
-            backgroundImage={backgroundImage}
-            backgroundType={backgroundType}
-            onThemeChange={setTheme}
-            onItemCountChange={setItemCount}
-            onContentStyleChange={setContentStyle}
-            onBackgroundImageChange={setBackgroundImage}
-            onBackgroundTypeChange={setBackgroundType}
-            onConfirm={handleThemeConfirmed}
-          />
-        )}
+          {currentStep === 1 && (
+            <ThemeInputStep
+              theme={theme}
+              itemCount={itemCount}
+              contentStyle={contentStyle}
+              backgroundImage={backgroundImage}
+              backgroundType={backgroundType}
+              onThemeChange={setTheme}
+              onItemCountChange={setItemCount}
+              onContentStyleChange={setContentStyle}
+              onBackgroundImageChange={setBackgroundImage}
+              onBackgroundTypeChange={setBackgroundType}
+              onConfirm={handleThemeConfirmed}
+            />
+          )}
 
-        {/* 步骤2：AI自动生成内容 */}
-        {currentStep === 2 && (
-          <ContentGenerationStep
-            theme={theme}
-            itemCount={itemCount}
-            contentStyle={contentStyle}
-            onContentGenerated={handleContentGenerated}
-            onBack={goPrev}
-          />
-        )}
+          {currentStep === 2 && (
+            <ContentGenerationStep
+              theme={theme}
+              itemCount={itemCount}
+              contentStyle={contentStyle}
+              onContentGenerated={handleContentGenerated}
+              onBack={goPrev}
+            />
+          )}
 
-        {/* 步骤3：图片与背景选择 */}
-        {currentStep === 3 && (
-          <ImageSelectionStep
-            theme={theme}
-            contentList={contentList}
-            onCompleted={handleImageSelectionCompleted}
-            onBack={goPrev}
-          />
-        )}
+          {currentStep === 3 && (
+            <ImageSelectionStep
+              theme={theme}
+              contentList={contentList}
+              onCompleted={handleImageSelectionCompleted}
+              onBack={goPrev}
+            />
+          )}
 
-        {/* 步骤4：自动排版与导出 */}
-        {currentStep === 4 && (
-          <LayoutPreviewStep
-            theme={theme}
-            backgroundImage={backgroundImage}
-            contentList={finalContentList}
-            onBack={goPrev}
-            onReset={handleReset}
-          />
-        )}
-      </div>
+          {currentStep === 4 && (
+            <LayoutPreviewStep
+              theme={theme}
+              backgroundImage={backgroundImage}
+              contentList={finalContentList}
+              onBack={goPrev}
+              onReset={handleReset}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

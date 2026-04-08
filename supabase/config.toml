@@ -1,5 +1,64 @@
-[auth.phone]
+[auth.sms]
 enable_confirmations = true
 
 [auth.email]
 enable_confirmations = false
+
+# 本地开发 CORS 配置
+[api]
+extra_search_path = "public,extensions"
+max_rows = 1000
+
+[functions.generate-xiaohongshu-copy]
+verify_jwt = false
+
+[functions.optimize-xiaohongshu-copy]
+verify_jwt = false
+
+[functions.xhs-auth]
+verify_jwt = false
+
+[functions.search-xiaohongshu-notes]
+verify_jwt = false
+
+[functions.parse-xiaohongshu-note]
+verify_jwt = false
+
+[functions.ai-recreate-content]
+verify_jwt = false
+
+[functions.agent-chat]
+verify_jwt = false
+
+[functions.generate-image-factory-content]
+verify_jwt = false
+
+[functions.generate-image-prompt]
+verify_jwt = false
+
+[functions.generate-image-dashscope]
+verify_jwt = false
+
+[functions.generate-image-factory-caption]
+verify_jwt = false
+
+[functions.generate-sora-video]
+verify_jwt = false
+
+[functions.query-sora-video]
+verify_jwt = false
+
+[functions.digital-human-hot-copies]
+verify_jwt = false
+
+[functions.digital-human-rewrite]
+verify_jwt = false
+
+[functions.digital-human-legal-review]
+verify_jwt = false
+
+[functions.digital-human-submit-job]
+verify_jwt = false
+
+[functions.digital-human-query-job]
+verify_jwt = false

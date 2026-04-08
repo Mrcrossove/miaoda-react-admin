@@ -4,26 +4,26 @@ import IntersectObserver from '@/components/common/IntersectObserver';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RouteGuard } from '@/components/common/RouteGuard';
 import { BottomNav } from '@/components/common/BottomNav';
+import { StarryBackground } from '@/components/common/StarryBackground';
 import { Toaster } from '@/components/ui/sonner';
 import routes from './routes';
 
 const App: React.FC = () => {
   useEffect(() => {
-    // HBuilderX 5+ App环境：处理小红书回调返回
     if (typeof window.plus !== 'undefined') {
-      // 监听被小红书唤起返回
-      document.addEventListener('plusready', () => {
-        console.log('HBuilderX环境准备就绪');
-        
-        // 处理Android的NewIntent（从小红书返回）
-        if (window.plus?.android) {
-          window.plus.android.addNewIntentHandler((intent: unknown) => {
-            console.log('从小红书返回:', intent);
-            // 可在此处刷新页面状态或提示发布成功
-            // 例如：显示"发布成功"提示，刷新我的产品列表等
-          });
-        }
-      }, false);
+      document.addEventListener(
+        'plusready',
+        () => {
+          console.log('HBuilderX environment ready');
+
+          if (window.plus?.android) {
+            window.plus.android.addNewIntentHandler((intent: unknown) => {
+              console.log('Returned from Xiaohongshu:', intent);
+            });
+          }
+        },
+        false,
+      );
     }
   }, []);
 
@@ -32,20 +32,20 @@ const App: React.FC = () => {
       <AuthProvider>
         <RouteGuard>
           <IntersectObserver />
-          <div className="flex flex-col min-h-screen">
-            <main className="flex-grow">
-              <Routes>
-                {routes.map((route, index) => (
-                  <Route
-                    key={index}
-                    path={route.path}
-                    element={route.element}
-                  />
-                ))}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-            <BottomNav />
+          <div className="relative min-h-screen overflow-x-hidden bg-[#050816] text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(212,175,55,0.16),_transparent_34%),radial-gradient(circle_at_18%_22%,_rgba(255,255,255,0.08),_transparent_20%),linear-gradient(180deg,_#090b12_0%,_#050816_42%,_#04050b_100%)]" />
+            <StarryBackground />
+            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[600px] flex-col">
+              <main className="flex-grow pb-20">
+                <Routes>
+                  {routes.map((route, index) => (
+                    <Route key={index} path={route.path} element={route.element} />
+                  ))}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </main>
+              <BottomNav />
+            </div>
           </div>
           <Toaster />
         </RouteGuard>

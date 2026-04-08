@@ -1,5 +1,5 @@
 /**
- * AI文案内容过滤系统
+ * AI 文案内容过滤系统
  * 用于移除生成文案中的标题、正文等标识文字
  */
 
@@ -13,80 +13,49 @@ export function filterContentLabels(content: string): string {
 
   let filtered = content;
 
-  // 1. 移除括号标识：【标题】、【正文】、【内容】、【主题】、【题目】、【主旨】、【详情】、【描述】等
+  // 1. 移除括号标识：【标题】、【正文】、【内容】、【主题】、【核心卖点】、【真实体验】、【小贴士】等
   const bracketPatterns = [
     /【标题】\s*/g,
     /【正文】\s*/g,
     /【内容】\s*/g,
     /【主题】\s*/g,
-    /【题目】\s*/g,
-    /【主旨】\s*/g,
-    /【详情】\s*/g,
-    /【描述】\s*/g,
+    /【核心卖点】\s*/g,
+    /【真实体验】\s*/g,
+    /【小贴士】\s*/g,
+    /【温馨提示】\s*/g,
+    /【注意】\s*/g,
+    /【提示】\s*/g,
     /\[标题\]\s*/g,
     /\[正文\]\s*/g,
     /\[内容\]\s*/g,
+    /\[核心卖点\]\s*/g,
+    /\[真实体验\]\s*/g,
+    /\[小贴士\]\s*/g,
   ];
 
   for (const pattern of bracketPatterns) {
     filtered = filtered.replace(pattern, '');
   }
 
-  // 2. 移除冒号前缀：标题：、正文：、内容：等
+  // 2. 移除冒号前缀：标题：、正文：、核心卖点：、真实体验：、小贴士：等
   const colonPatterns = [
-    /^标题[：:]\s*/gm,
-    /^正文[：:]\s*/gm,
-    /^内容[：:]\s*/gm,
-    /^主题[：:]\s*/gm,
-    /^题目[：:]\s*/gm,
-    /^主旨[：:]\s*/gm,
-    /^详情[：:]\s*/gm,
-    /^描述[：:]\s*/gm,
+    /^标题 [：:]\s*/gm,
+    /^正文 [：:]\s*/gm,
+    /^内容 [：:]\s*/gm,
+    /^核心卖点 [：:]\s*/gm,
+    /^真实体验 [：:]\s*/gm,
+    /^小贴士 [：:]\s*/gm,
+    /^温馨提示 [：:]\s*/gm,
   ];
 
   for (const pattern of colonPatterns) {
     filtered = filtered.replace(pattern, '');
   }
 
-  // 3. 移除破折号前缀：标题-、正文-等
-  const dashPatterns = [
-    /^标题[-－—]\s*/gm,
-    /^正文[-－—]\s*/gm,
-    /^内容[-－—]\s*/gm,
-    /^主题[-－—]\s*/gm,
-  ];
-
-  for (const pattern of dashPatterns) {
-    filtered = filtered.replace(pattern, '');
-  }
-
-  // 4. 移除数字序号模式：1.标题、2.正文等
-  const numberPatterns = [
-    /^\d+[.、]\s*标题[：:]\s*/gm,
-    /^\d+[.、]\s*正文[：:]\s*/gm,
-    /^\d+[.、]\s*内容[：:]\s*/gm,
-  ];
-
-  for (const pattern of numberPatterns) {
-    filtered = filtered.replace(pattern, '');
-  }
-
-  // 5. 移除行首的"标题"、"正文"等单独出现的词（后面跟换行）
-  const standalonePatterns = [
-    /^标题\s*\n/gm,
-    /^正文\s*\n/gm,
-    /^内容\s*\n/gm,
-    /^主题\s*\n/gm,
-  ];
-
-  for (const pattern of standalonePatterns) {
-    filtered = filtered.replace(pattern, '');
-  }
-
-  // 6. 清理多余的空行（超过2个连续换行）
+  // 3. 清理多余的空行（超过 2 个连续换行）
   filtered = filtered.replace(/\n{3,}/g, '\n\n');
 
-  // 7. 清理首尾空白
+  // 4. 清理首尾空白
   filtered = filtered.trim();
 
   return filtered;
@@ -106,8 +75,7 @@ export function filterTitleLabels(title: string): string {
   const patterns = [
     /【标题】\s*/g,
     /\[标题\]\s*/g,
-    /^标题[：:]\s*/,
-    /^标题[-－—]\s*/,
+    /^标题 [：:]\s*/,
   ];
 
   for (const pattern of patterns) {
@@ -131,8 +99,7 @@ export function filterBodyLabels(body: string): string {
   const patterns = [
     /【正文】\s*/g,
     /\[正文\]\s*/g,
-    /^正文[：:]\s*/gm,
-    /^正文[-－—]\s*/gm,
+    /^正文 [：:]\s*/gm,
   ];
 
   for (const pattern of patterns) {
@@ -169,29 +136,15 @@ export function hasContentLabels(content: string): boolean {
   const patterns = [
     /【标题】/,
     /【正文】/,
-    /【内容】/,
-    /^标题[：:]/m,
-    /^正文[：:]/m,
-    /^内容[：:]/m,
+    /【核心卖点】/,
+    /【真实体验】/,
+    /【小贴士】/,
+    /^标题 [：:]/m,
+    /^正文 [：:]/m,
+    /^核心卖点 [：:]/m,
   ];
 
   return patterns.some(pattern => pattern.test(content));
-}
-
-/**
- * 获取过滤统计信息
- * @param original - 原始文案
- * @param filtered - 过滤后的文案
- * @returns 过滤统计信息
- */
-export function getFilterStats(original: string, filtered: string) {
-  return {
-    originalLength: original.length,
-    filteredLength: filtered.length,
-    removedLength: original.length - filtered.length,
-    hasLabels: hasContentLabels(original),
-    isFiltered: original !== filtered,
-  };
 }
 
 /**
@@ -227,7 +180,7 @@ export function separateTitleAndBody(content: string): { title: string; body: st
 }
 
 /**
- * 智能分离标题和正文（考虑emoji和长度）
+ * 智能分离标题和正文（考虑 emoji 和长度）
  * @param content - 完整文案内容
  * @returns 分离后的标题和正文
  */
@@ -254,7 +207,7 @@ export function smartSeparateTitleAndBody(content: string): { title: string; bod
   // 第一行作为标题
   let title = lines[0];
   
-  // 如果第一行太短（少于5个字符，不含emoji），可能需要合并第二行
+  // 如果第一行太短（少于 5 个字符，不含 emoji），可能需要合并第二行
   const titleWithoutEmoji = title.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
   if (titleWithoutEmoji.length < 5 && lines.length > 1) {
     // 检查第二行是否也很短

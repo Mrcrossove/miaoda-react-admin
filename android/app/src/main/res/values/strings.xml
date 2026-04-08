@@ -1,5 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">自媒体创作</string>
-    <string name="accessibility_service_description">小红书自动发布服务：自动化操作小红书APP，实现自动上传图片和填写文案。使用前请确保已授予相册访问权限。</string>
+    <string name="title_activity_main">自媒体创作</string>
+    <string name="package_name">com.miaoda.creator</string>
+    <string name="custom_url_scheme">com.miaoda.creator</string>
 </resources>

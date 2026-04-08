@@ -345,8 +345,43 @@ export async function generateSoraVideo(prompt: string, duration: 10 | 15): Prom
   status: string;
   message: string;
 }> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const directResponse = await fetch(`${supabaseUrl}/functions/v1/generate-sora-video`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt, duration }),
+  });
+
+  const directText = await directResponse.text();
+
+  if (!directResponse.ok) {
+    console.error('提交视频生成请求失败:', directText);
+    throw new Error(directText || '提交视频生成请求失败');
+  }
+
+  const directData = JSON.parse(directText);
+
+  if (!directData.success) {
+    throw new Error(directData.error || '提交视频生成请求失败');
+  }
+
+  return {
+    video_id: directData.video_id,
+    status: directData.status,
+    message: directData.message,
+  };
+
   const { data, error } = await supabase.functions.invoke('generate-sora-video', {
     body: { prompt, duration },
+    headers: {
+      apikey: supabaseAnonKey,
+      'Content-Type': 'application/json',
+    },
   });
 
   if (error) {
@@ -390,8 +425,42 @@ export async function querySoraVideo(videoId: string): Promise<{
   video_url: string | null;
   message: string;
 }> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const directResponse = await fetch(`${supabaseUrl}/functions/v1/query-sora-video?video_id=${videoId}`, {
+    method: 'GET',
+    headers: {
+      apikey: supabaseAnonKey,
+    },
+  });
+
+  const directText = await directResponse.text();
+
+  if (!directResponse.ok) {
+    console.error('查询视频状态失败:', directText);
+    throw new Error(directText || '查询视频状态失败');
+  }
+
+  const directData = JSON.parse(directText);
+
+  if (!directData.success) {
+    throw new Error(directData.error || '查询视频状态失败');
+  }
+
+  return {
+    video_id: directData.video_id,
+    status: directData.status,
+    progress: directData.progress,
+    video_url: directData.video_url,
+    message: directData.message,
+  };
+
   const { data, error } = await supabase.functions.invoke(`query-sora-video?video_id=${videoId}`, {
     method: 'GET',
+    headers: {
+      apikey: supabaseAnonKey,
+    },
   });
 
   if (error) {
@@ -911,7 +980,7 @@ export async function loginWithAccount(username: string, password: string) {
   return {
     success: result.success,
     userId: result.user_id,
-    username: result.username,
+    username: result.user_name,
     displayName: result.display_name,
     message: result.message
   };
@@ -1165,3 +1234,140 @@ export async function getCreditTransactions(userId: string, limit: number = 50) 
 }
 
 
+
+
+// 注册用户账号（用户自行注册，无需管理员权限）
+export async function registerWithAccount(
+  username: string,
+  password: string,
+  displayName?: string
+) {
+  const { data, error } = await supabase.rpc('register_user_account', {
+    p_username: username,
+    p_password: password,
+    p_display_name: displayName
+  });
+
+  if (error) {
+    console.error('注册账号失败:', error);
+    return { success: false, message: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { success: false, message: '注册账号失败' };
+  }
+
+  const result = data[0];
+  return {
+    success: result.success,
+    userId: result.account_id,
+    username: result.account_name,
+    displayName: result.account_display_name,
+    message: result.message
+  };
+}
+
+
+/**
+ * 优化小红书文案
+ */
+export async function optimizeXiaohongshuCopy(
+  originalContent: string,
+  onData?: (data: string) => void,
+  onComplete?: () => void,
+  onError?: (error: Error) => void,
+  signal?: AbortSignal
+) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  try {
+    const { sendStreamRequest } = await import('@/utils/stream');
+    
+    await sendStreamRequest({
+      functionUrl: `${supabaseUrl}/functions/v1/optimize-xiaohongshu-copy`,
+      requestBody: { originalContent },
+      supabaseAnonKey,
+      onData,
+      onComplete,
+      onError,
+      signal,
+    });
+  } catch (error) {
+    console.error('优化小红书文案失败:', error);
+    throw error;
+  }
+}
+
+
+/**
+ * AI 智能体对话
+ */
+export async function agentChat(
+  message: string,
+  agentId: string,
+  history: Array<{ role: string; content: string }>,
+  onData?: (data: string) => void,
+  onComplete?: () => void,
+  onError?: (error: Error) => void,
+  signal?: AbortSignal
+) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  try {
+    const { sendStreamRequest } = await import('@/utils/stream');
+    
+    await sendStreamRequest({
+      functionUrl: `${supabaseUrl}/functions/v1/agent-chat`,
+      requestBody: { message, agentId, history },
+      supabaseAnonKey,
+      onData,
+      onComplete,
+      onError,
+      signal,
+    });
+  } catch (error) {
+    console.error('AI 智能体对话失败:', error);
+    throw error;
+  }
+}
+
+
+/**
+ * 生成小红书文案
+ */
+export async function generateXiaohongshuCopy(productData: {
+  productName: string;
+  sellingPoints: string[];
+  category: string;
+}) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  try {
+    const { sendStreamRequest } = await import('@/utils/stream');
+    
+    let responseText = '';
+    
+    await sendStreamRequest({
+      functionUrl: `${supabaseUrl}/functions/v1/generate-xiaohongshu-copy`,
+      requestBody: productData,
+      supabaseAnonKey,
+      onData: (chunk) => {
+        try {
+          const parsed = JSON.parse(chunk);
+          const content = parsed.content || '';
+          responseText += content;
+        } catch {
+          // 忽略解析错误
+        }
+      },
+    });
+    
+    return responseText;
+  } catch (error) {
+    console.error('生成小红书文案失败:', error);
+    throw error;
+  }
+}
