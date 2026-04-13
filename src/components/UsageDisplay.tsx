@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Zap, AlertTriangle } from 'lucide-react';
-import { getUserUsage } from '@/db/api';
+import { getUserUsage } from '@/db/selfHostedApi';
 import { isValidUUID } from '@/utils/uuid';
 
 interface UsageDisplayProps {

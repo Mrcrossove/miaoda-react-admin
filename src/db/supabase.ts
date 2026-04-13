@@ -1,14 +1,32 @@
+const missingSupabaseEnvMessage =
+  'Supabase has been disabled in the self-hosted deployment. Do not use src/db/supabase.ts.';
 
-import { createClient } from '@supabase/supabase-js';
+function fail() {
+  throw new Error(missingSupabaseEnvMessage);
+}
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const storageBucket = {
+  upload: fail,
+  getPublicUrl: fail,
+};
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
+const tableQuery = {
+  select: fail,
+  insert: fail,
+  update: fail,
+  delete: fail,
+  eq: fail,
+  order: fail,
+  maybeSingle: fail,
+};
+
+export const supabase = {
+  from: () => tableQuery,
+  rpc: fail,
+  functions: {
+    invoke: fail,
   },
-});
-            
+  storage: {
+    from: () => storageBucket,
+  },
+};

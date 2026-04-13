@@ -1,23 +1,17 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '@/db/supabase';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { getProfileByUserId } from '@/db/selfHostedApi';
 import type { Profile } from '@/types';
-import { isValidUUID, getUserIdFromStorage } from '@/utils/uuid';
+import { isValidUUID } from '@/utils/uuid';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+  if (!isValidUUID(userId)) {
+    return null;
+  }
 
-    if (error) {
-      console.error('获取用户信息失败:', error);
-      return null;
-    }
-    return data;
+  try {
+    return await getProfileByUserId(userId);
   } catch (error) {
-    console.error('获取用户信息时发生网络错误:', error);
+    console.error('Failed to load self-hosted profile:', error);
     return null;
   }
 }
@@ -68,24 +62,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('[AuthContext] 刷新用户信息，userId:', user.id);
     const profileData = await getProfile(user.id);
     setProfile(profileData);
   };
 
   useEffect(() => {
-    console.log('[AuthContext] 初始化...');
     const storedUser = getStoredUser();
 
     if (storedUser) {
-      console.log('[AuthContext] 找到已登录用户:', storedUser.userId);
       setUser({ id: storedUser.userId });
       setUserInfo(storedUser);
-      getProfile(storedUser.userId).then(setProfile);
+      void getProfile(storedUser.userId).then(setProfile);
     }
 
     setLoading(false);
-    console.log('[AuthContext] 初始化完成');
   }, []);
 
   const login = (userId: string, username: string, displayName: string) => {
@@ -93,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user_info', JSON.stringify(info));
     setUser({ id: userId });
     setUserInfo(info);
-    getProfile(userId).then(setProfile);
+    void getProfile(userId).then(setProfile);
   };
 
   const logout = async () => {

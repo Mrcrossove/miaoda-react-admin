@@ -10,7 +10,6 @@ import {
   Image as ImageIcon,
   Video,
   Crown,
-  Bot,
 } from 'lucide-react';
 import type { PlatformType } from '@/types';
 
@@ -23,7 +22,7 @@ export default function HomePage() {
     () => [
       {
         id: 'my-product',
-        title: '我有产品',
+        title: '我的产品',
         description: '管理商品信息，快速生成图文与视频素材',
         icon: ShoppingBag,
         bgGradient: 'from-pink-100 to-pink-200',
@@ -84,15 +83,6 @@ export default function HomePage() {
         iconColor: 'text-green-500',
         path: '/ecommerce-video',
       },
-      {
-        id: 'ai-digital-human',
-        title: 'AI数字人',
-        description: '爆款仿写、法务审查、数字人口播，一条链路先跑通',
-        icon: Bot,
-        bgGradient: 'from-violet-100 to-fuchsia-200',
-        iconColor: 'text-violet-500',
-        path: '/ai-digital-human',
-      },
     ],
     [],
   );
@@ -105,7 +95,7 @@ export default function HomePage() {
 
         <div className="relative z-10 flex items-center justify-between">
           <div>
-            <h1 className="mb-1 text-3xl font-black text-white">鲸小助</h1>
+            <h1 className="mb-1 text-3xl font-black text-white">妙达小助</h1>
             <p className="text-sm font-medium text-white/90">AI 创作工具集</p>
           </div>
           <button

@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Clipboard } from '@capacitor/clipboard';
 import { toast } from 'sonner';
-import { supabase } from '@/db/supabase';
+import { getJson } from '@/lib/apiBase';
 
 const XHS_SDK_URL = 'https://fe-static.xhscdn.com/biz-static/goten/xhs-1.0.1.js';
 const XHS_SDK_LOAD_TIMEOUT_MS = 8000;
@@ -219,10 +219,11 @@ export function useXHSShare() {
       }
     }
 
-    if (isApp() && window.plus) {
+    const plusRuntime = window.plus?.runtime;
+    if (isApp() && plusRuntime) {
       return new Promise((resolve) => {
         try {
-          window.plus.runtime.openURL(
+          plusRuntime.openURL(
             'xhsdiscover://',
             () => resolve(true),
             () => resolve(false),
@@ -258,10 +259,11 @@ export function useXHSShare() {
         return;
       }
 
-      if (isApp() && window.plus) {
+      const plusRuntime = window.plus?.runtime;
+      if (isApp() && plusRuntime) {
         // Android: 检测包名 com.xingin.xhs
         // iOS: 检测URL Scheme xhsdiscover://
-        window.plus.runtime.isApplicationExist(
+        plusRuntime.isApplicationExist(
           { 
             pname: 'com.xingin.xhs',  // Android包名
             action: 'xhsdiscover://'   // iOS Scheme
@@ -282,11 +284,12 @@ export function useXHSShare() {
    */
   const getVerifyConfig = useCallback(async (): Promise<VerifyConfigResponse | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke<{
+      const data = await getJson<{
         success: boolean;
         data?: VerifyConfigResponse;
         error?: string;
-      }>('xhs-auth');
+      }>('/xhs-auth');
+      const error = null;
 
       if (error) {
         console.error('获取鉴权配置失败:', error);

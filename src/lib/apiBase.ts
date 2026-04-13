@@ -3,17 +3,28 @@ export function getApiBaseUrl() {
   if (configured) {
     return configured.replace(/\/$/, '');
   }
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
-  if (supabaseUrl) {
-    return `${supabaseUrl.replace(/\/$/, '')}/functions/v1`;
-  }
-
-  return '';
+  return '/api';
 }
 
 export function buildApiUrl(path: string) {
   const base = getApiBaseUrl();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${base}${normalizedPath}`;
+}
+
+export async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(buildApiUrl(path), {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers || {}),
+    },
+  });
+
+  const data = (await response.json()) as T & { error?: string };
+  if (!response.ok) {
+    throw new Error(data?.error || 'Request failed');
+  }
+
+  return data;
 }

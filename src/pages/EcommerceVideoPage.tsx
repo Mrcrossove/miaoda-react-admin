@@ -10,7 +10,7 @@ import PromptGenerationStep from '@/components/ecommerce-video/PromptGenerationS
 import PromptEditStep from '@/components/ecommerce-video/PromptEditStep';
 import VideoGenerationStep from '@/components/ecommerce-video/VideoGenerationStep';
 import UsageDisplay from '@/components/UsageDisplay';
-import { checkAndConsumeUsage } from '@/db/api';
+import { checkAndConsumeUsage } from '@/db/selfHostedApi';
 import { isValidUUID } from '@/utils/uuid';
 import { useAuth } from '@/contexts/AuthContext';
 

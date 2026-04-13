@@ -3,17 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, Loader2, Video, Image as ImageIcon, Zap } from 'lucide-react';
 import { toast } from 'sonner';
-import { getUserCreditUsage, getUserCredits } from '@/db/api';
+import { getUserCreditUsage, getUserCredits, type CreditUsageRecord } from '@/db/selfHostedApi';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface CreditUsage {
-  id: string;
-  user_id: string;
-  credits: number;
-  usage_type: 'video_generation' | 'image_factory';
-  description: string | null;
-  created_at: string;
-}
 
 const USAGE_TYPE_CONFIG = {
   video_generation: {
@@ -30,7 +21,7 @@ const USAGE_TYPE_CONFIG = {
 
 export default function CreditHistoryPage() {
   const navigate = useNavigate();
-  const [usageList, setUsageList] = useState<CreditUsage[]>([]);
+  const [usageList, setUsageList] = useState<CreditUsageRecord[]>([]);
   const [currentCredits, setCurrentCredits] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'video_generation' | 'image_factory'>('all');

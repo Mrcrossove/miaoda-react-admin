@@ -4,27 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { getCreditOrder, getUserCredits } from '@/db/api';
+import { getCreditOrder, getUserCredits, type CreditOrderDetail } from '@/db/selfHostedApi';
 import QRCodeDataUrl from '@/components/ui/qrcodedataurl';
-
-interface OrderDetail {
-  id: string;
-  order_no: string;
-  user_id: string;
-  package_id: string;
-  credits: number;
-  amount: number;
-  status: 'pending' | 'paid' | 'cancelled' | 'expired';
-  wechat_pay_url: string | null;
-  payment_id: string | null;
-  created_at: string;
-  updated_at: string;
-  credit_packages: {
-    name: string;
-    credits: number;
-    price: number;
-  };
-}
 
 const STATUS_CONFIG = {
   pending: {
@@ -56,7 +37,7 @@ const STATUS_CONFIG = {
 export default function OrderDetailPage() {
   const { orderNo } = useParams<{ orderNo: string }>();
   const navigate = useNavigate();
-  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [order, setOrder] = useState<CreditOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentCredits, setCurrentCredits] = useState<number>(0);
   const pollingRef = useRef<number | null>(null);
@@ -202,8 +183,8 @@ export default function OrderDetailPage() {
                 <p className="text-base font-semibold text-foreground">微信扫码支付</p>
                 <div className="bg-white p-4 rounded-lg">
                   <QRCodeDataUrl 
-                    text={order.wechat_pay_url} 
-                    width={200}
+                    value={order.wechat_pay_url}
+                    size={200}
                   />
                 </div>
                 <p className="text-sm text-text-secondary text-center">

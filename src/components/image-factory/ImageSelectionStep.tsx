@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Image as ImageIcon, Upload, Sparkles, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateImageWithDashscope, generateImagePrompt } from '@/db/api';
+import { generateImageWithDashscope, generateImagePrompt } from '@/db/selfHostedApi';
 import type { ContentItem } from '@/pages/ImageFactoryPage';
 
 interface ImageSelectionStepProps {

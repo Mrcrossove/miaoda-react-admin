@@ -4,15 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Zap, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getCreditPackages, getUserCredits, createCreditOrder } from '@/db/api';
-
-interface CreditPackage {
-  id: string;
-  name: string;
-  credits: number;
-  price: number;
-  sort_order: number;
-}
+import { createCreditOrder, getCreditPackages, getUserCredits, type CreditPackage } from '@/db/selfHostedApi';
 
 export default function CreditsPage() {
   const navigate = useNavigate();

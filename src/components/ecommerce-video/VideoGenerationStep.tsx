@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Download, Loader2, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateSoraVideo, querySoraVideo } from '@/db/api';
+import { generateSoraVideo, querySoraVideo } from '@/db/selfHostedApi';
 import type { VideoDuration } from '@/utils/promptGenerator';
 
 interface VideoGenerationStepProps {

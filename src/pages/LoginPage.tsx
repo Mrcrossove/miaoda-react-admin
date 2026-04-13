@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { loginWithAccount, registerWithAccount } from '@/db/api';
+import { loginWithAccount, registerWithAccount } from '@/db/selfHostedApi';
 import { useAuth } from '@/contexts/AuthContext';
 
 const PHONE_REGEX = /^1\d{10}$/;

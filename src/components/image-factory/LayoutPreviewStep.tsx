@@ -8,7 +8,7 @@ import { Download, ArrowLeft, RotateCcw, Loader2, Package, Share2, Copy, Sparkle
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import type { ContentItem } from '@/pages/ImageFactoryPage';
-import { generateImageFactoryCaption } from '@/db/api';
+import { generateImageFactoryCaption } from '@/db/selfHostedApi';
 import { useXHSShare } from '@/hooks/useXHSShare';
 import { uploadImagesToSupabase } from '@/services/imageUploadService';
 import { filterContentLabels } from '@/utils/contentFilter';

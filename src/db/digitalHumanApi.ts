@@ -1,4 +1,9 @@
-import { supabase } from './supabase';
+const unsupportedMessage =
+  'AI数字人功能仍依赖 Supabase，当前自建后端迁移阶段已临时下线。';
+
+function unsupported(): never {
+  throw new Error(unsupportedMessage);
+}
 
 export interface DigitalHumanHotCopy {
   id: string;
@@ -41,87 +46,36 @@ export interface DigitalHumanJobResult {
   error_message?: string | null;
 }
 
-export async function uploadDigitalHumanAsset(
-  file: File,
-  folder: 'avatars' | 'voices',
-): Promise<string> {
-  const timestamp = Date.now();
-  const randomStr = Math.random().toString(36).slice(2, 10);
-  const ext = file.name.split('.').pop() || 'bin';
-  const fileName = `${folder}/${timestamp}_${randomStr}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from('app-8sm6r7tdrncx_digital_human_assets')
-    .upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: false,
-    });
-
-  if (error) {
-    console.error('上传数字人素材失败:', error);
-    throw new Error(error.message || '上传数字人素材失败');
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from('app-8sm6r7tdrncx_digital_human_assets').getPublicUrl(fileName);
-
-  return publicUrl;
+export async function uploadDigitalHumanAsset(_file: File, _folder: 'avatars' | 'voices'): Promise<string> {
+  unsupported();
 }
 
-export async function getDigitalHumanHotCopies(userId: string, industry: string): Promise<{
+export async function getDigitalHumanHotCopies(_userId: string, _industry: string): Promise<{
   session_id: string;
   copies: DigitalHumanHotCopy[];
 }> {
-  const { data, error } = await supabase.functions.invoke('digital-human-hot-copies', {
-    body: JSON.stringify({ user_id: userId, industry }),
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (error) {
-    throw new Error(error.message || '获取爆款文案失败');
-  }
-
-  return data;
+  unsupported();
 }
 
-export async function rewriteDigitalHumanCopy(payload: {
+export async function rewriteDigitalHumanCopy(_payload: {
   user_id: string;
   session_id: string;
   source_title: string;
   source_content: string;
 }): Promise<{ rewrite_id: string; versions: DigitalHumanRewriteVersion[] }> {
-  const { data, error } = await supabase.functions.invoke('digital-human-rewrite', {
-    body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (error) {
-    throw new Error(error.message || '仿写失败');
-  }
-
-  return data;
+  unsupported();
 }
 
-export async function reviewDigitalHumanCopy(payload: {
+export async function reviewDigitalHumanCopy(_payload: {
   user_id: string;
   rewrite_id: string;
   selected_version_index: number;
   script: string;
 }): Promise<DigitalHumanLegalReviewResult> {
-  const { data, error } = await supabase.functions.invoke('digital-human-legal-review', {
-    body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (error) {
-    throw new Error(error.message || '法务审查失败');
-  }
-
-  return data;
+  unsupported();
 }
 
-export async function submitDigitalHumanJob(payload: {
+export async function submitDigitalHumanJob(_payload: {
   user_id: string;
   rewrite_id: string;
   legal_review_id: string;
@@ -131,35 +85,9 @@ export async function submitDigitalHumanJob(payload: {
   avatar_url: string;
   voice_sample_url: string;
 }): Promise<DigitalHumanJobResult> {
-  const { data, error } = await supabase.functions.invoke('digital-human-submit-job', {
-    body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (error) {
-    throw new Error(error.message || '提交数字人任务失败');
-  }
-
-  return data;
+  unsupported();
 }
 
-export async function queryDigitalHumanJob(jobId: string): Promise<DigitalHumanJobResult> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  const response = await fetch(`${supabaseUrl}/functions/v1/digital-human-query-job?job_id=${jobId}`, {
-    method: 'GET',
-    headers: {
-      apikey: supabaseAnonKey,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  const text = await response.text();
-
-  if (!response.ok) {
-    throw new Error(text || '查询数字人任务失败');
-  }
-
-  return JSON.parse(text);
+export async function queryDigitalHumanJob(_jobId: string): Promise<DigitalHumanJobResult> {
+  unsupported();
 }

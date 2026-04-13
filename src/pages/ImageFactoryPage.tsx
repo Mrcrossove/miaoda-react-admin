@@ -8,7 +8,7 @@ import ContentGenerationStep from '@/components/image-factory/ContentGenerationS
 import ImageSelectionStep from '@/components/image-factory/ImageSelectionStep';
 import LayoutPreviewStep from '@/components/image-factory/LayoutPreviewStep';
 import UsageDisplay from '@/components/UsageDisplay';
-import { checkAndConsumeUsage } from '@/db/api';
+import { checkAndConsumeUsage } from '@/db/selfHostedApi';
 import { isValidUUID } from '@/utils/uuid';
 import { useAuth } from '@/contexts/AuthContext';
 

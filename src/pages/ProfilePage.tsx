@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { getUserCredits, getUserStatistics } from '@/db/api';
+import { getUserCredits, getUserStatistics } from '@/db/selfHostedApi';
 import { isValidUUID } from '@/utils/uuid';
 
 export default function ProfilePage() {

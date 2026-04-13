@@ -1,10 +1,122 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
+import { getProfileByUserId, loginAccount, registerAccount } from './auth-store.js';
+import {
+  checkAndConsumeFeatureUsage,
+  createOrder,
+  getCreditPackagesList,
+  getCreditsBalance,
+  getCreditUsageHistory,
+  getOrderDetail,
+  getUsageSummary,
+  getUserStatisticsSummary,
+} from './billing-store.js';
 import { env, requireEnv } from './env.js';
+import {
+  createProductRecord,
+  deleteProductRecord,
+  listProductsByUserId,
+  updateProductRecord,
+} from './product-store.js';
 import { pipeOpenAISSE, passThroughSSE } from './sse.js';
+import { readUpload, saveUpload } from './upload-store.js';
 
 const app = new Hono();
+const DASHSCOPE_TEXT_API_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation';
+const DASHSCOPE_IMAGE_API_URL =
+  'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
+const SORA_API_BASE_URL = 'https://api.apiyi.com/v1/videos';
+
+function getAuthorizationHeader(apiKey: string) {
+  return apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`;
+}
+
+async function parseJsonResponse(response: Response) {
+  const text = await response.text();
+  let data: any = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message = data?.message || data?.error || text || `Upstream request failed with ${response.status}`;
+    throw new Error(message);
+  }
+
+  if (data?.code) {
+    throw new Error(`${data.code}: ${data.message || 'Upstream service error'}`);
+  }
+
+  return data;
+}
+
+async function requestDashscopeText(prompt: string) {
+  const response = await fetch(DASHSCOPE_TEXT_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${requireEnv('DASHSCOPE_API_KEY')}`,
+    },
+    body: JSON.stringify({
+      model: 'qwen-plus',
+      input: {
+        messages: [{ role: 'user', content: prompt }],
+      },
+      parameters: {
+        result_format: 'message',
+      },
+    }),
+  });
+
+  const data = await parseJsonResponse(response);
+  const content = data?.output?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== 'string') {
+    throw new Error('DashScope returned empty content.');
+  }
+
+  return content;
+}
+
+function extractJsonArray(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match =
+      text.match(/```json\s*([\s\S]*?)\s*```/i) ||
+      text.match(/```\s*([\s\S]*?)\s*```/i) ||
+      text.match(/\[[\s\S]*\]/);
+
+    if (!match) {
+      throw new Error('Unable to extract JSON array from model output.');
+    }
+
+    const jsonText = match[1] || match[0];
+    return JSON.parse(jsonText);
+  }
+}
+
+function getSoraStatusMessage(status: string) {
+  switch (status) {
+    case 'submitted':
+      return 'Submitted';
+    case 'queued':
+      return 'Queued';
+    case 'in_progress':
+      return 'In progress';
+    case 'completed':
+      return 'Completed';
+    case 'failed':
+      return 'Failed';
+    default:
+      return 'Unknown status';
+  }
+}
 
 app.use(
   '*',
@@ -22,6 +134,231 @@ app.get('/health', (c) =>
     timestamp: new Date().toISOString(),
   })
 );
+
+app.get('/uploads/*', async (c) => {
+  const relativePath = c.req.path.replace(/^\/uploads\//, '');
+  const file = await readUpload(relativePath);
+
+  if (!file) {
+    return c.json({ error: 'Upload not found.' }, 404);
+  }
+
+  return new Response(file.body, {
+    headers: {
+      'Content-Type': file.contentType,
+      'Cache-Control': 'public, max-age=3600',
+    },
+  });
+});
+
+app.post('/api/auth/register', async (c) => {
+  const body = await c.req.json();
+  const username = typeof body.username === 'string' ? body.username : '';
+  const password = typeof body.password === 'string' ? body.password : '';
+  const displayName = typeof body.displayName === 'string' ? body.displayName : undefined;
+
+  if (!username || !password) {
+    return c.json({ success: false, message: 'Missing username or password.' }, 400);
+  }
+
+  const result = await registerAccount(username, password, displayName);
+  if (!result.success) {
+    return c.json(result, 400);
+  }
+
+  return c.json(result);
+});
+
+app.post('/api/auth/login', async (c) => {
+  const body = await c.req.json();
+  const username = typeof body.username === 'string' ? body.username : '';
+  const password = typeof body.password === 'string' ? body.password : '';
+
+  if (!username || !password) {
+    return c.json({ success: false, message: 'Missing username or password.' }, 400);
+  }
+
+  const result = await loginAccount(username, password);
+  if (!result.success) {
+    return c.json(result, 401);
+  }
+
+  return c.json(result);
+});
+
+app.get('/api/profiles/:userId', async (c) => {
+  const userId = c.req.param('userId');
+  const profile = await getProfileByUserId(userId);
+
+  if (!profile) {
+    return c.json({ error: 'Profile not found.' }, 404);
+  }
+
+  return c.json(profile);
+});
+
+app.get('/api/products', async (c) => {
+  const userId = c.req.query('userId');
+  if (!userId) {
+    return c.json({ error: 'Missing userId.' }, 400);
+  }
+
+  const products = await listProductsByUserId(userId);
+  return c.json(products);
+});
+
+app.get('/api/credits/packages', async (c) => {
+  const packages = await getCreditPackagesList();
+  return c.json(packages);
+});
+
+app.get('/api/credits/balance', async (c) => {
+  const userId = c.req.query('userId');
+  if (!userId) {
+    return c.json({ error: 'Missing userId.' }, 400);
+  }
+
+  const balance = await getCreditsBalance(userId);
+  return c.json({ balance });
+});
+
+app.post('/api/credits/orders', async (c) => {
+  const body = await c.req.json();
+  const userId = typeof body.userId === 'string' ? body.userId : '';
+  const packageId = typeof body.packageId === 'string' ? body.packageId : '';
+
+  if (!userId || !packageId) {
+    return c.json({ error: 'Missing userId or packageId.' }, 400);
+  }
+
+  const result = await createOrder(userId, packageId);
+  return c.json(result);
+});
+
+app.get('/api/credits/orders/:orderNo', async (c) => {
+  const order = await getOrderDetail(c.req.param('orderNo'));
+  if (!order) {
+    return c.json({ error: 'Order not found.' }, 404);
+  }
+
+  return c.json(order);
+});
+
+app.get('/api/credits/history', async (c) => {
+  const userId = c.req.query('userId');
+  const limit = Number.parseInt(c.req.query('limit') || '50', 10);
+  if (!userId) {
+    return c.json({ error: 'Missing userId.' }, 400);
+  }
+
+  const usage = await getCreditUsageHistory(userId, limit);
+  return c.json(usage);
+});
+
+app.post('/api/usage/check-and-consume', async (c) => {
+  const body = await c.req.json();
+  const userId = typeof body.userId === 'string' ? body.userId : '';
+  const feature = body.feature as 'image_factory' | 'ecommerce_video';
+
+  if (!userId || (feature !== 'image_factory' && feature !== 'ecommerce_video')) {
+    return c.json({ error: 'Invalid userId or feature.' }, 400);
+  }
+
+  const result = await checkAndConsumeFeatureUsage(userId, feature);
+  return c.json(result);
+});
+
+app.get('/api/usage/:userId', async (c) => {
+  const summary = await getUsageSummary(c.req.param('userId'));
+  return c.json(summary);
+});
+
+app.get('/api/statistics/:userId', async (c) => {
+  const stats = await getUserStatisticsSummary(c.req.param('userId'));
+  return c.json(stats);
+});
+
+app.post('/api/products', async (c) => {
+  const body = await c.req.json();
+  const userId = typeof body.user_id === 'string' ? body.user_id : '';
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+
+  if (!userId || !name) {
+    return c.json({ error: 'Missing user_id or name.' }, 400);
+  }
+
+  const product = await createProductRecord({
+    user_id: userId,
+    name,
+    description: typeof body.description === 'string' ? body.description : null,
+    selling_points: typeof body.selling_points === 'string' ? body.selling_points : null,
+    target_audience: typeof body.target_audience === 'string' ? body.target_audience : null,
+    image_urls: Array.isArray(body.image_urls) ? body.image_urls.filter((item: unknown) => typeof item === 'string') : [],
+    platform: typeof body.platform === 'string' ? body.platform : '',
+  });
+
+  return c.json(product);
+});
+
+app.patch('/api/products/:productId', async (c) => {
+  const productId = c.req.param('productId');
+  const body = await c.req.json();
+  const userId = typeof body.user_id === 'string' ? body.user_id : '';
+
+  if (!productId || !userId) {
+    return c.json({ error: 'Missing productId or user_id.' }, 400);
+  }
+
+  const product = await updateProductRecord(productId, userId, {
+    name: typeof body.name === 'string' ? body.name.trim() : undefined,
+    description: typeof body.description === 'string' ? body.description : undefined,
+    selling_points: typeof body.selling_points === 'string' ? body.selling_points : undefined,
+    target_audience: typeof body.target_audience === 'string' ? body.target_audience : undefined,
+    image_urls: Array.isArray(body.image_urls) ? body.image_urls.filter((item: unknown) => typeof item === 'string') : undefined,
+    platform: typeof body.platform === 'string' ? body.platform : undefined,
+  });
+
+  if (!product) {
+    return c.json({ error: 'Product not found.' }, 404);
+  }
+
+  return c.json(product);
+});
+
+app.delete('/api/products/:productId', async (c) => {
+  const productId = c.req.param('productId');
+  const userId = c.req.query('userId');
+
+  if (!productId || !userId) {
+    return c.json({ error: 'Missing productId or userId.' }, 400);
+  }
+
+  const deleted = await deleteProductRecord(productId, userId);
+  if (!deleted) {
+    return c.json({ error: 'Product not found.' }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
+app.post('/api/uploads/:category', async (c) => {
+  const category = c.req.param('category');
+  const body = await c.req.parseBody();
+  const file = body.file;
+  const ownerId = typeof body.ownerId === 'string' ? body.ownerId : undefined;
+
+  if (!(file instanceof File)) {
+    return c.json({ error: 'Missing file.' }, 400);
+  }
+
+  const upload = await saveUpload(file, category, ownerId);
+  const origin = new URL(c.req.url).origin;
+
+  return c.json({
+    path: upload.relativePath,
+    publicUrl: `${origin}${upload.publicPath}`,
+  });
+});
 
 app.post('/api/trending-lists', async (c) => {
   const { type } = await c.req.json();
@@ -327,6 +664,227 @@ app.post('/api/generate-xiaohongshu-copy', async (c) => {
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
     },
+  });
+});
+
+app.post('/api/generate-image-dashscope', async (c) => {
+  const body = await c.req.json();
+  const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+  const size = typeof body.size === 'string' ? body.size : '1024*1024';
+
+  if (!prompt) {
+    return c.json({ success: false, error: 'Prompt is required.' }, 400);
+  }
+
+  if (!/^\d+\*\d+$/.test(size)) {
+    return c.json({ success: false, error: 'Invalid size format.' }, 400);
+  }
+
+  const response = await fetch(DASHSCOPE_IMAGE_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${requireEnv('DASHSCOPE_API_KEY')}`,
+    },
+    body: JSON.stringify({
+      model: 'z-image-turbo',
+      input: {
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: prompt.slice(0, 800) }],
+          },
+        ],
+      },
+      parameters: {
+        prompt_extend: false,
+        size,
+      },
+    }),
+  });
+
+  const data = await parseJsonResponse(response);
+  const imageUrl = data?.output?.choices?.[0]?.message?.content?.[0]?.image;
+
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    throw new Error('DashScope did not return an image URL.');
+  }
+
+  return c.json({
+    success: true,
+    image_url: imageUrl,
+    message: 'Image generated successfully.',
+  });
+});
+
+app.post('/api/generate-image-factory-content', async (c) => {
+  const body = await c.req.json();
+  const theme = typeof body.theme === 'string' ? body.theme.trim() : '';
+  const itemCount = Number(body.itemCount);
+  const contentStyle = typeof body.contentStyle === 'string' ? body.contentStyle : 'science';
+
+  if (!theme) {
+    return c.json({ success: false, error: 'Theme is required.' }, 400);
+  }
+
+  if (!Number.isInteger(itemCount) || itemCount < 3 || itemCount > 8) {
+    return c.json({ success: false, error: 'itemCount must be between 3 and 8.' }, 400);
+  }
+
+  const stylePrompts: Record<string, string> = {
+    science: 'Professional and educational. Accurate wording, clear explanations, useful takeaways.',
+    recommend: 'Recommendation style. Warm, persuasive, lively, easy to read.',
+    cute: 'Cute and playful. Friendly tone, light mood, social-post friendly.',
+  };
+
+  const prompt = `You are writing Xiaohongshu image-carousel copy.
+Generate ${itemCount} items for the topic "${theme}".
+Style: ${stylePrompts[contentStyle] || stylePrompts.science}
+
+Rules:
+1. Each item must have "subTitle" and "content".
+2. subTitle should be concise and punchy, around 5-10 Chinese characters.
+3. content should be under 50 Chinese characters.
+4. Return JSON only. No markdown fences.
+
+Example:
+[
+  {"subTitle":"小标题1","content":"对应文案1"},
+  {"subTitle":"小标题2","content":"对应文案2"}
+]`;
+
+  const text = await requestDashscopeText(prompt);
+  const contentList = extractJsonArray(text);
+
+  if (!Array.isArray(contentList)) {
+    throw new Error('Invalid content list returned from model.');
+  }
+
+  const normalized = contentList.slice(0, itemCount).map((item: any) => ({
+    subTitle: String(item?.subTitle || item?.sub_title || '').trim(),
+    content: String(item?.content || '').trim().slice(0, 50),
+  }));
+
+  if (normalized.some((item) => !item.subTitle || !item.content)) {
+    throw new Error('Generated content items are incomplete.');
+  }
+
+  return c.json({
+    success: true,
+    content_list: normalized,
+    message: 'Content generated successfully.',
+  });
+});
+
+app.post('/api/generate-image-prompt', async (c) => {
+  const body = await c.req.json();
+  const theme = typeof body.theme === 'string' ? body.theme.trim() : '';
+  const subTitle = typeof body.subTitle === 'string' ? body.subTitle.trim() : '';
+  const content = typeof body.content === 'string' ? body.content.trim() : '';
+
+  if (!theme || !subTitle) {
+    return c.json({ success: false, error: 'Theme and subTitle are required.' }, 400);
+  }
+
+  const prompt = `Write one concise Chinese image prompt for a Xiaohongshu-style cover image.
+Topic: ${theme}
+Sub-title: ${subTitle}
+Caption: ${content}
+
+Requirements:
+1. Describe subject, scene, composition, lighting, mood, and color palette.
+2. Fit Xiaohongshu aesthetics: clean, textured, attractive, natural.
+3. Output plain text only, around 50-150 Chinese characters.`;
+
+  const generatedPrompt = (await requestDashscopeText(prompt)).trim().replace(/^["']|["']$/g, '');
+
+  return c.json({
+    success: true,
+    prompt: generatedPrompt,
+    message: 'Prompt generated successfully.',
+  });
+});
+
+app.post('/api/generate-image-factory-caption', async (c) => {
+  const body = await c.req.json();
+  const theme = typeof body.theme === 'string' ? body.theme.trim() : '';
+
+  if (!theme) {
+    return c.json({ success: false, error: 'Theme is required.' }, 400);
+  }
+
+  const prompt = `You are a Xiaohongshu copywriter.
+Create one catchy post title and one short body for the topic "${theme}".
+
+Requirements:
+1. Conversational and engaging.
+2. Include 2-3 related hashtags at the end.
+3. Total length suitable for a short social caption.
+4. Output plain text only. Do not use markdown fences.`;
+
+  const caption = (await requestDashscopeText(prompt)).trim();
+  return c.json({
+    success: true,
+    caption,
+    message: 'Caption generated successfully.',
+  });
+});
+
+app.post('/api/generate-sora-video', async (c) => {
+  const body = await c.req.json();
+  const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+  const duration = body.duration === 15 ? 15 : 10;
+
+  if (!prompt) {
+    return c.json({ success: false, error: 'Prompt is required.' }, 400);
+  }
+
+  const response = await fetch(SORA_API_BASE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: getAuthorizationHeader(requireEnv('SORA_API_KEY')),
+    },
+    body: JSON.stringify({
+      model: 'sora-2',
+      prompt,
+      size: '720x1280',
+      seconds: duration.toString(),
+    }),
+  });
+
+  const data = await parseJsonResponse(response);
+  return c.json({
+    success: true,
+    video_id: data?.id,
+    status: data?.status || 'submitted',
+    message: 'Video generation submitted. Expected completion in 3-5 minutes.',
+  });
+});
+
+app.get('/api/query-sora-video', async (c) => {
+  const videoId = c.req.query('video_id');
+  if (!videoId) {
+    return c.json({ success: false, error: 'Missing video_id parameter.' }, 400);
+  }
+
+  const response = await fetch(`${SORA_API_BASE_URL}/${videoId}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: getAuthorizationHeader(requireEnv('SORA_API_KEY')),
+    },
+  });
+
+  const data = await parseJsonResponse(response);
+  return c.json({
+    success: true,
+    video_id: videoId,
+    status: data?.status || 'submitted',
+    progress: Number(data?.progress || 0),
+    video_url: data?.url || data?.video_url || null,
+    message: getSoraStatusMessage(data?.status || 'submitted'),
   });
 });
 

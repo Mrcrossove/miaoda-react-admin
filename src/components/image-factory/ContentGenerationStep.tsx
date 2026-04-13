@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Loader2, Sparkles, Edit, ArrowRight, ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateImageFactoryContent } from '@/db/api';
+import { generateImageFactoryContent } from '@/db/selfHostedApi';
 import type { ContentItem, ContentStyle } from '@/pages/ImageFactoryPage';
 
 interface ContentGenerationStepProps {

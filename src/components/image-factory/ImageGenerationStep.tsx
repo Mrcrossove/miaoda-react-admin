@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2, CheckCircle2, RotateCcw, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateImageWithDashscope } from '@/db/api';
+import { generateImageWithDashscope } from '@/db/selfHostedApi';
 import { compositeImage, downloadImage } from '@/utils/imageComposite';
 
 interface ContentItem {
